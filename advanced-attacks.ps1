@@ -45,7 +45,12 @@ function Execute-Attack {
     Write-Host "  Type: $Type" -ForegroundColor Gray
     Write-Host "  Endpoint: $Endpoint" -ForegroundColor Gray
     
-    $attackHeaders = $headers.Clone()
+    # Start with global headers (including subscription key)
+    $attackHeaders = @{}
+    foreach ($key in $script:headers.Keys) {
+        $attackHeaders[$key] = $script:headers[$key]
+    }
+    # Add any additional headers passed to the function
     foreach ($key in $Headers.Keys) {
         $attackHeaders[$key] = $Headers[$key]
     }
