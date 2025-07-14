@@ -220,7 +220,7 @@ resource "azurerm_api_management_api" "vulnshop" {
 
   import {
     content_format = "openapi+json"
-    content_value  = file("${path.root}/apim-swagger.json")
+    content_value  = file("../../apim-swagger.json")
   }
 }
 
@@ -258,7 +258,7 @@ resource "azurerm_api_management_api_policy" "vulnshop" {
   api_management_name = azurerm_api_management.main.name
   resource_group_name = azurerm_resource_group.main.name
 
-  xml_content = file("${path.root}/policies/cors-policy.xml")
+  xml_content = file("../../policies/cors-policy.xml")
 }
 
 # Storage Account for diagnostics
