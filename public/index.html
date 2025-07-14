@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VulnShop - E-commerce Store</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .auth-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .search-bar {
+            margin: 2rem auto;
+            max-width: 600px;
+            padding: 0 1rem;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .product-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .product-image {
+            width: 100%;
+            height: 200px;
+            background-color: #ecf0f1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #7f8c8d;
+            font-size: 2rem;
+        }
+        
+        .product-info {
+            padding: 1rem;
+        }
+        
+        .product-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .product-description {
+            color: #7f8c8d;
+            margin-bottom: 1rem;
+        }
+        
+        .product-price {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #e74c3c;
+            margin-bottom: 1rem;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: black;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .user-info {
+            display: none;
+            color: white;
+        }
+        
+        .admin-panel {
+            display: none;
+            background-color: #f39c12;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .vulnerability-note {
+            background-color: #e74c3c;
+            color: white;
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="vulnerability-note">
+        ⚠️ This is a deliberately vulnerable application for security testing purposes
+    </div>
+    
+    <header>
+        <div class="logo">VulnShop</div>
+        <div class="auth-buttons">
+            <div class="user-info" id="userInfo">
+                Welcome, <span id="username"></span>!
+                <button class="btn btn-danger" onclick="logout()">Logout</button>
+            </div>
+            <div id="authButtons">
+                <button class="btn btn-primary" onclick="showLogin()">Login</button>
+                <button class="btn btn-secondary" onclick="showRegister()">Register</button>
+            </div>
+        </div>
+    </header>
+    
+    <div class="admin-panel" id="adminPanel">
+        <h3>Admin Panel</h3>
+        <button class="btn btn-primary" onclick="viewUsers()">View Users</button>
+        <button class="btn btn-secondary" onclick="addProduct()">Add Product</button>
+    </div>
+    
+    <div class="search-bar">
+        <input type="text" class="search-input" placeholder="Search products (try SQL injection here)..." onkeyup="searchProducts(this.value)">
+    </div>
+    
+    <div class="products-grid" id="productsGrid">
+        <!-- Products will be loaded here -->
+    </div>
+    
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('loginModal')">&times;</span>
+            <h2>Login</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginUsername">Username:</label>
+                    <input type="text" id="loginUsername" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password:</label>
+                    <input type="password" id="loginPassword" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Login</button>
+            </form>
+            <p style="margin-top: 1rem; color: #7f8c8d;">
+                Default credentials: admin/password or john_doe/password
+            </p>
+        </div>
+    </div>
+    
+    <!-- Register Modal -->
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('registerModal')">&times;</span>
+            <h2>Register</h2>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="registerUsername">Username:</label>
+                    <input type="text" id="registerUsername" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail">Email:</label>
+                    <input type="email" id="registerEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password:</label>
+                    <input type="password" id="registerPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerRole">Role (vulnerable mass assignment):</label>
+                    <select id="registerRole" name="role">
+                        <option value="customer">Customer</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Register</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let currentUser = null;
+        let products = [];
+        
+        // Load products on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProducts();
+            checkAuthStatus();
+        });
+        
+        // Check if user is logged in
+        function checkAuthStatus() {
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    currentUser = payload;
+                    document.getElementById('userInfo').style.display = 'block';
+                    document.getElementById('authButtons').style.display = 'none';
+                    document.getElementById('username').textContent = currentUser.username;
+                    
+                    if (currentUser.role === 'admin') {
+                        document.getElementById('adminPanel').style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Invalid token');
+                    logout();
+                }
+            }
+        }
+        
+        // Load products
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/products');
+                products = await response.json();
+                displayProducts(products);
+            } catch (error) {
+                console.error('Error loading products:', error);
+            }
+        }
+        
+        // Display products
+        function displayProducts(products) {
+            const grid = document.getElementById('productsGrid');
+            grid.innerHTML = products.map(product => `
+                <div class="product-card">
+                    <div class="product-image">📦</div>
+                    <div class="product-info">
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-description">${product.description}</div>
+                        <div class="product-price">$${product.price}</div>
+                        <button class="btn btn-primary" onclick="buyProduct(${product.id})">Buy Now</button>
+                        <button class="btn btn-secondary" onclick="viewOrder(${product.id})">View Order (IDOR)</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Search products (vulnerable to SQL injection)
+        async function searchProducts(query) {
+            if (!query.trim()) {
+                displayProducts(products);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/products/search?q=${encodeURIComponent(query)}`);
+                const searchResults = await response.json();
+                displayProducts(searchResults);
+            } catch (error) {
+                console.error('Search error:', error);
+            }
+        }
+        
+        // Show login modal
+        function showLogin() {
+            document.getElementById('loginModal').style.display = 'block';
+        }
+        
+        // Show register modal
+        function showRegister() {
+            document.getElementById('registerModal').style.display = 'block';
+        }
+        
+        // Close modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        // Login form handler
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const credentials = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/api/users/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(credentials)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('token', result.token);
+                    currentUser = result.user;
+                    checkAuthStatus();
+                    closeModal('loginModal');
+                    alert('Login successful!');
+                } else {
+                    alert('Login failed: ' + result.error);
+                }
+            } catch (error) {
+                alert('Login error: ' + error.message);
+            }
+        });
+        
+        // Register form handler
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const userData = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/api/users/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(userData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    closeModal('registerModal');
+                    alert('Registration successful! Please login.');
+                } else {
+                    alert('Registration failed: ' + result.error);
+                }
+            } catch (error) {
+                alert('Registration error: ' + error.message);
+            }
+        });
+        
+        // Logout
+        function logout() {
+            localStorage.removeItem('token');
+            currentUser = null;
+            document.getElementById('userInfo').style.display = 'none';
+            document.getElementById('authButtons').style.display = 'block';
+            document.getElementById('adminPanel').style.display = 'none';
+        }
+        
+        // Buy product (creates order)
+        async function buyProduct(productId) {
+            if (!currentUser) {
+                alert('Please login to buy products');
+                return;
+            }
+            
+            const token = localStorage.getItem('token');
+            const product = products.find(p => p.id === productId);
+            
+            try {
+                const response = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        items: [{
+                            productId: productId,
+                            quantity: 1,
+                            price: product.price
+                        }]
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(`Order created successfully! Order ID: ${result.orderId}`);
+                } else {
+                    alert('Order failed: ' + result.error);
+                }
+            } catch (error) {
+                alert('Order error: ' + error.message);
+            }
+        }
+        
+        // View order (IDOR vulnerability)
+        async function viewOrder(orderId) {
+            try {
+                const response = await fetch(`/api/orders/${orderId}`);
+                const order = await response.json();
+                
+                if (response.ok) {
+                    alert(`Order Details: ${JSON.stringify(order, null, 2)}`);
+                } else {
+                    alert('Order not found: ' + order.error);
+                }
+            } catch (error) {
+                alert('Error viewing order: ' + error.message);
+            }
+        }
+        
+        // Admin: View users
+        async function viewUsers() {
+            const token = localStorage.getItem('token');
+            
+            try {
+                const response = await fetch('/api/admin/users', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const users = await response.json();
+                
+                if (response.ok) {
+                    alert(`Users: ${JSON.stringify(users, null, 2)}`);
+                } else {
+                    alert('Error: ' + users.error);
+                }
+            } catch (error) {
+                alert('Error viewing users: ' + error.message);
+            }
+        }
+        
+        // Admin: Add product
+        async function addProduct() {
+            const token = localStorage.getItem('token');
+            const name = prompt('Product name:');
+            const description = prompt('Product description:');
+            const price = parseFloat(prompt('Product price:'));
+            
+            if (!name || !description || !price) return;
+            
+            try {
+                const response = await fetch('/api/products', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        name,
+                        description,
+                        price,
+                        stock: 10,
+                        image_url: '/images/default.jpg'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('Product added successfully!');
+                    loadProducts();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error adding product: ' + error.message);
+            }
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modals = document.getElementsByClassName('modal');
+            for (let modal of modals) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        }
+    </script>
+</body>
+</html> 

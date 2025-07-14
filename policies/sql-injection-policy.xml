@@ -1,0 +1,64 @@
+<policies>
+    <inbound>
+        <base />
+        <!-- SQL Injection Protection -->
+        <set-variable name="searchQuery" value="@(context.Request.Url.Query.GetValueOrDefault("q", "").ToLower())" />
+        <choose>
+            <when condition="@{
+                string query = context.Variables.GetValueOrDefault<string>("searchQuery", "");
+                return query.Contains("'") || 
+                       query.Contains("--") || 
+                       query.Contains("/*") || 
+                       query.Contains("*/") || 
+                       query.Contains("xp_") || 
+                       query.Contains("sp_") || 
+                       query.Contains("drop") || 
+                       query.Contains("insert") || 
+                       query.Contains("update") || 
+                       query.Contains("delete") || 
+                       query.Contains("union") || 
+                       query.Contains("select") || 
+                       query.Contains("exec") || 
+                       query.Contains("execute") || 
+                       query.Contains("script") || 
+                       query.Contains("alert") || 
+                       query.Contains("javascript") || 
+                       query.Contains("vbscript") || 
+                       query.Contains("onload") || 
+                       query.Contains("onerror") || 
+                       query.Contains("<script") || 
+                       query.Contains("</script");
+            }">
+                <return-response>
+                    <set-status code="400" reason="Bad Request" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error": "Potentially malicious query detected. Request blocked by security policy.", "code": "SECURITY_VIOLATION"}</set-body>
+                </return-response>
+            </when>
+        </choose>
+        <!-- Log potential attacks -->
+        <log-to-eventhub logger-id="security-logger" partition-id="0">
+            @{
+                return new JObject(
+                    new JProperty("timestamp", DateTime.UtcNow.ToString()),
+                    new JProperty("ip", context.Request.IpAddress),
+                    new JProperty("endpoint", context.Request.Url.Path),
+                    new JProperty("query", context.Request.Url.Query),
+                    new JProperty("user-agent", context.Request.Headers.GetValueOrDefault("User-Agent", "")),
+                    new JProperty("attack-type", "sql-injection-attempt")
+                ).ToString();
+            }
+        </log-to-eventhub>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies> 

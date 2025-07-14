@@ -1,0 +1,32 @@
+{
+  "name": "vulnshop-fullstack",
+  "version": "2.0.0",
+  "description": "Vulnerable e-commerce full-stack application with MongoDB for Azure APIM security testing",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev", 
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend && npm run build && npm run preview",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm install --production",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["vulnerable", "e-commerce", "security", "azure", "apim", "mongodb", "react", "node.js", "fullstack"],
+  "author": "Security Educational Project",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/vulnshop-fullstack.git"
+  }
+} 

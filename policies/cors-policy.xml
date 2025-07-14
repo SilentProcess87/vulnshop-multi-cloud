@@ -1,0 +1,42 @@
+<policies>
+    <inbound>
+        <base />
+        <!-- CORS Policy - Replace with your actual domain -->
+        <cors allow-credentials="false">
+            <allowed-origins>
+                <origin>https://vulnshop-frontend.azurewebsites.net</origin>
+                <origin>https://localhost:3000</origin>
+                <origin>http://localhost:3000</origin>
+            </allowed-origins>
+            <allowed-methods>
+                <method>GET</method>
+                <method>POST</method>
+                <method>PUT</method>
+                <method>DELETE</method>
+                <method>HEAD</method>
+                <method>OPTIONS</method>
+            </allowed-methods>
+            <allowed-headers>
+                <header>Content-Type</header>
+                <header>Authorization</header>
+                <header>Accept</header>
+                <header>X-Requested-With</header>
+                <header>Ocp-Apim-Subscription-Key</header>
+            </allowed-headers>
+            <expose-headers>
+                <header>X-Request-ID</header>
+                <header>X-Rate-Limit-Remaining</header>
+                <header>X-Rate-Limit-Reset</header>
+            </expose-headers>
+        </cors>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies> 

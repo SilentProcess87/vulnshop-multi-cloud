@@ -1,0 +1,27 @@
+<policies>
+    <inbound>
+        <base />
+        <!-- Rate limiting per API key -->
+        <rate-limit calls="10" renewal-period="60" />
+        <!-- Rate limiting per IP address -->
+        <rate-limit-by-key calls="5" renewal-period="60" counter-key="@(context.Request.IpAddress)" />
+        <!-- Enhanced rate limiting for specific endpoints -->
+        <choose>
+            <when condition="@(context.Request.Url.Path.Contains("/api/users/login"))">
+                <rate-limit-by-key calls="3" renewal-period="300" counter-key="@(context.Request.IpAddress)" />
+            </when>
+            <when condition="@(context.Request.Url.Path.Contains("/api/admin/"))">
+                <rate-limit-by-key calls="20" renewal-period="60" counter-key="@(context.Request.IpAddress)" />
+            </when>
+        </choose>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies> 

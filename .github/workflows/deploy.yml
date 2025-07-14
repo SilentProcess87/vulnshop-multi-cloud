@@ -1,0 +1,216 @@
+name: Deploy VulnShop
+
+on:
+  workflow_dispatch:
+    inputs:
+      cloud_provider:
+        description: 'Choose cloud provider'
+        required: true
+        type: choice
+        options:
+          - azure
+          - gcp
+          - aws
+      action:
+        description: 'Choose action'
+        required: true
+        type: choice
+        options:
+          - deploy
+          - destroy
+      environment:
+        description: 'Environment name'
+        required: true
+        default: 'dev'
+        type: string
+      ssh_public_key:
+        description: 'SSH Public Key (required for all providers)'
+        required: true
+        type: string
+
+env:
+  TF_VAR_git_repo: ${{ github.server_url }}/${{ github.repository }}
+  TF_VAR_git_branch: ${{ github.ref_name }}
+  TF_VAR_environment: ${{ inputs.environment }}
+  TF_VAR_ssh_public_key: ${{ inputs.ssh_public_key }}
+
+jobs:
+  deploy:
+    name: ${{ inputs.action }} on ${{ inputs.cloud_provider }}
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.5.0"
+
+    # Azure specific setup
+    - name: Azure Login
+      if: inputs.cloud_provider == 'azure'
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    # GCP specific setup
+    - name: Authenticate to Google Cloud
+      if: inputs.cloud_provider == 'gcp'
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Setup GCP CLI
+      if: inputs.cloud_provider == 'gcp'
+      uses: google-github-actions/setup-gcloud@v2
+
+    # AWS specific setup
+    - name: Configure AWS credentials
+      if: inputs.cloud_provider == 'aws'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+    # Set provider-specific environment variables
+    - name: Set Azure environment variables
+      if: inputs.cloud_provider == 'azure'
+      run: |
+        echo "TF_VAR_apim_publisher_email=${{ vars.AZURE_APIM_PUBLISHER_EMAIL || 'admin@example.com' }}" >> $GITHUB_ENV
+        echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+        echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
+        echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+
+    - name: Set GCP environment variables
+      if: inputs.cloud_provider == 'gcp'
+      run: |
+        echo "TF_VAR_project_id=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
+        echo "GOOGLE_PROJECT=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
+
+    - name: Set AWS environment variables
+      if: inputs.cloud_provider == 'aws'
+      run: |
+        echo "AWS_DEFAULT_REGION=${{ vars.AWS_REGION || 'us-east-1' }}" >> $GITHUB_ENV
+
+    # Initialize Terraform
+    - name: Terraform Init
+      working-directory: terraform/${{ inputs.cloud_provider }}
+      run: |
+        terraform init \
+          -backend-config="key=vulnshop-${{ inputs.cloud_provider }}-${{ inputs.environment }}.tfstate"
+
+    # Plan/Apply or Destroy
+    - name: Terraform Plan
+      if: inputs.action == 'deploy'
+      working-directory: terraform/${{ inputs.cloud_provider }}
+      run: terraform plan -out=tfplan
+
+    - name: Terraform Apply
+      if: inputs.action == 'deploy'
+      working-directory: terraform/${{ inputs.cloud_provider }}
+      run: |
+        terraform apply -auto-approve tfplan
+        echo "## Deployment Successful! 🚀" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Cloud Provider: ${{ inputs.cloud_provider }}" >> $GITHUB_STEP_SUMMARY
+        echo "### Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Outputs:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        terraform output >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+    - name: Terraform Destroy
+      if: inputs.action == 'destroy'
+      working-directory: terraform/${{ inputs.cloud_provider }}
+      run: |
+        terraform destroy -auto-approve
+        echo "## Infrastructure Destroyed! 💥" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Cloud Provider: ${{ inputs.cloud_provider }}" >> $GITHUB_STEP_SUMMARY
+        echo "### Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+
+    # Save deployment info
+    - name: Save deployment info
+      if: inputs.action == 'deploy'
+      working-directory: terraform/${{ inputs.cloud_provider }}
+      run: |
+        mkdir -p ../../deployment-info
+        terraform output -json > ../../deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json
+        
+    - name: Upload deployment info
+      if: inputs.action == 'deploy'
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-info-${{ inputs.cloud_provider }}-${{ inputs.environment }}
+        path: deployment-info/
+        retention-days: 30
+
+  test-deployment:
+    name: Test Deployment
+    if: inputs.action == 'deploy'
+    runs-on: ubuntu-latest
+    needs: deploy
+    
+    steps:
+    - name: Download deployment info
+      uses: actions/download-artifact@v4
+      with:
+        name: deployment-info-${{ inputs.cloud_provider }}-${{ inputs.environment }}
+        path: deployment-info/
+
+    - name: Test deployment
+      run: |
+        if [ -f "deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json" ]; then
+          # Extract URLs from terraform output
+          if [ "${{ inputs.cloud_provider }}" == "azure" ]; then
+            FRONTEND_URL=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.frontend_url.value')
+            API_URL=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.api_via_apim_url.value')
+          elif [ "${{ inputs.cloud_provider }}" == "gcp" ]; then
+            FRONTEND_URL=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.frontend_url.value')
+            API_URL=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.api_via_apigee_url.value')
+          elif [ "${{ inputs.cloud_provider }}" == "aws" ]; then
+            FRONTEND_URL=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.frontend_url.value')
+            API_URL=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.api_via_gateway_url.value')
+          fi
+          
+          echo "Testing deployment on ${{ inputs.cloud_provider }}..."
+          echo "Frontend URL: $FRONTEND_URL"
+          echo "API URL: $API_URL"
+          
+          # Wait for deployment to be ready
+          echo "Waiting for services to be ready..."
+          sleep 120
+          
+          # Test frontend
+          echo "Testing frontend..."
+          if curl -f --max-time 30 "$FRONTEND_URL/status.html"; then
+            echo "✅ Frontend is accessible"
+          else
+            echo "❌ Frontend test failed"
+            exit 1
+          fi
+          
+          # Test backend API
+          echo "Testing backend API..."
+          if curl -f --max-time 30 "$FRONTEND_URL/api/products"; then
+            echo "✅ Backend API is accessible"
+          else
+            echo "❌ Backend API test failed"
+            exit 1
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🧪 Deployment Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Frontend accessible at: $FRONTEND_URL" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Backend API accessible at: $FRONTEND_URL/api/products" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Status page: $FRONTEND_URL/status.html" >> $GITHUB_STEP_SUMMARY
+          
+        else
+          echo "No deployment info found"
+          exit 1
+        fi 

@@ -1,0 +1,55 @@
+{
+  "configurations": [],
+  "contextInfo": "VulnShop API Proxy",
+  "createdAt": 1647875400000,
+  "createdBy": "terraform",
+  "description": "Vulnerable e-commerce API proxy for educational purposes",
+  "displayName": "VulnShop API",
+  "lastModifiedAt": 1647875400000,
+  "lastModifiedBy": "terraform",
+  "name": "vulnshop-api",
+  "policies": [
+    {
+      "name": "cors-policy",
+      "policyType": "CORS",
+      "content": {
+        "allowCredentials": "true",
+        "allowHeaders": "Content-Type,Authorization",
+        "allowMethods": "GET,POST,PUT,DELETE,OPTIONS",
+        "allowOrigins": "*",
+        "exposeHeaders": "",
+        "maxAge": "3628800"
+      }
+    }
+  ],
+  "proxies": [
+    {
+      "name": "default",
+      "basepaths": ["/api"],
+      "virtualHosts": ["default"],
+      "flows": [
+        {
+          "name": "AllowCORS",
+          "condition": "request.verb == \"OPTIONS\"",
+          "request": [
+            {
+              "name": "cors-policy"
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ],
+  "resourceFiles": [],
+  "resources": [],
+  "revision": "1",
+  "targets": [
+    {
+      "name": "vulnshop-backend",
+      "url": "http://${backend_host}:${backend_port}",
+      "description": "VulnShop backend server"
+    }
+  ],
+  "type": "Application"
+} 
