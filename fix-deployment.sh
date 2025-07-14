@@ -5,6 +5,9 @@ set -e
 
 echo "🔧 Running quick fixes for VulnShop deployment..."
 
+# Change to the correct directory
+cd /var/www/vulnshop
+
 # Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -120,9 +123,9 @@ EOF
 
 # Start backend
 pm2 delete vulnshop-backend 2>/dev/null || true
-cd backend
+cd /var/www/vulnshop/backend
 pm2 start server.js --name vulnshop-backend
-cd ..
+cd /var/www/vulnshop
 pm2 save
 
 # Step 9: Verify everything is working
