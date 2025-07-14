@@ -1,11 +1,17 @@
 import axios from 'axios'
 
+// Get API configuration from environment variables
+const API_URL = import.meta.env.VITE_API_URL || '/api'
+const API_SUBSCRIPTION_KEY = import.meta.env.VITE_API_SUBSCRIPTION_KEY
+
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: '/api', // Will be proxied to backend by Vite
+  baseURL: API_URL,
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    // Add subscription key if configured (for APIM)
+    ...(API_SUBSCRIPTION_KEY && { 'Ocp-Apim-Subscription-Key': API_SUBSCRIPTION_KEY })
   }
 })
 
@@ -68,5 +74,11 @@ export const admin = {
 export const health = {
   check: () => api.get('/health'),
 }
+
+// Log configuration for debugging
+console.log('API Configuration:', {
+  baseURL: API_URL,
+  hasSubscriptionKey: !!API_SUBSCRIPTION_KEY
+})
 
 export default api 

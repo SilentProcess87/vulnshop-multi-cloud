@@ -150,6 +150,7 @@ VulnShop contains 12 intentional vulnerabilities. Here's how to find and exploit
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Detailed system architecture
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Complete deployment guide
 - [QUICK_START.md](QUICK_START.md) - Local development setup
+- [FIX_VULNSHOP_APIM.md](FIX_VULNSHOP_APIM.md) - **NEW**: Fix scripts for APIM integration
 
 ### 🛡️ Security Learning Resources
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/) - Understanding web vulnerabilities

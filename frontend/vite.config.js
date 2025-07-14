@@ -6,13 +6,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false,
-      }
-    }
+    // Proxy removed - using APIM for all API calls
+    // For local development without APIM, use environment variable:
+    // VITE_API_URL=http://localhost:3001/api npm run dev
   },
   build: {
     outDir: 'dist',
