@@ -1,0 +1,62 @@
+<policies>
+    <inbound>
+        <!-- Save the request body and headers to be sent to Cortex -->
+        <set-variable name="requestBody" value="@((context.Request?.Body?.As<string>(preserveContent: true)) ?? string.Empty)" />
+        <set-variable name="requestHeaders" value="@(JsonConvert.SerializeObject(context.Request.Headers))" />
+        
+        <!-- Basic CORS for browser access -->
+        <cors allow-credentials="false">
+            <allowed-origins>
+                <origin>*</origin>
+            </allowed-origins>
+            <allowed-methods>
+                <method>GET</method>
+                <method>POST</method>
+                <method>PUT</method>
+                <method>DELETE</method>
+                <method>OPTIONS</method>
+            </allowed-methods>
+            <allowed-headers>
+                <header>*</header>
+            </allowed-headers>
+        </cors>
+    </inbound>
+    
+    <backend>
+        <forward-request />
+    </backend>
+    
+    <outbound>
+        <!-- Send data to Cortex -->
+        <send-request mode="new" response-variable-name="mirrorMessage" ignore-error="true">
+            <set-url>{{cortex-api-url}}</set-url>
+            <set-method>POST</set-method>
+            <set-header name="Content-Type" exists-action="override">
+                <value>application/json</value>
+            </set-header>
+            <set-header name="ApiKey" exists-action="override">
+                <value>{{cortex-api-key}}</value>
+            </set-header>
+            <set-body>@{
+                return JsonConvert.SerializeObject(new {
+                    request = new {
+                        id = context.RequestId,
+                        sourceIP = context.Request.IpAddress,
+                        method = context.Request.Method,
+                        url = context.Request.Url.ToString(),
+                        headers = context.Variables.GetValueOrDefault<string>("requestHeaders", "{}"),
+                        body = context.Variables.GetValueOrDefault<string>("requestBody", "")
+                    },
+                    response = new {
+                        statusCode = context.Response.StatusCode,
+                        headers = JsonConvert.SerializeObject(context.Response.Headers)
+                    }
+                });
+            }</set-body>
+        </send-request>
+    </outbound>
+    
+    <on-error>
+        <base />
+    </on-error>
+</policies> 
