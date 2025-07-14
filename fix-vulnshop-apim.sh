@@ -284,13 +284,8 @@ if [ "$CONTEXT" = "VM" ]; then
     # Create nginx configuration
     echo -e "${YELLOW}Creating secure nginx configuration...${NC}"
     
-    # Build allow rules for APIM IPs
-    ALLOW_RULES=""
-    for ip in $APIM_IPS; do
-        ALLOW_RULES="${ALLOW_RULES}    allow $ip;\n"
-    done
-    
-    cat > /tmp/nginx-vulnshop-secure <<EOF
+    # Start creating the nginx configuration
+    cat > /tmp/nginx-vulnshop-secure <<'NGINX_START'
 server {
     listen 80;
     server_name _;
@@ -305,7 +300,7 @@ server {
     # Frontend - accessible to all
     location / {
         root /var/www/vulnshop/frontend/dist;
-        try_files \$uri \$uri/ /index.html;
+        try_files $uri $uri/ /index.html;
         
         # Security headers for frontend
         add_header Content-Security-Policy "default-src 'self' https://*.azure-api.net; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https:; img-src 'self' https: data:; font-src 'self' https: data:; connect-src 'self' https://*.azure-api.net;" always;
@@ -314,7 +309,15 @@ server {
     # API - only accessible from APIM
     location /api/ {
         # Allow APIM IPs
-${ALLOW_RULES}
+NGINX_START
+    
+    # Add allow rules for each APIM IP
+    for ip in $APIM_IPS; do
+        echo "        allow $ip;" >> /tmp/nginx-vulnshop-secure
+    done
+    
+    # Continue with the rest of the configuration
+    cat >> /tmp/nginx-vulnshop-secure <<NGINX_END
         # Allow localhost for health checks
         allow 127.0.0.1;
         # Deny all others
@@ -347,7 +350,7 @@ ${ALLOW_RULES}
         access_log off;
     }
 }
-EOF
+NGINX_END
     
     echo -e "${GREEN}✓ Nginx configuration created${NC}"
     

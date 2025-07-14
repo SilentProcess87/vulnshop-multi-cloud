@@ -24,7 +24,7 @@ function Print-Header {
 }
 
 # Check if running on VM
-$isVM = Test-Path "/var/www/vulnshop" -or Test-Path "/etc/nginx/sites-available/vulnshop"
+$isVM = (Test-Path "/var/www/vulnshop") -or (Test-Path "/etc/nginx/sites-available/vulnshop")
 
 if ($isVM) {
     $CONTEXT = "VM"
