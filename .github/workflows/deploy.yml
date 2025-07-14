@@ -114,15 +114,71 @@ jobs:
       working-directory: terraform/${{ inputs.cloud_provider }}
       run: |
         terraform apply -auto-approve tfplan
-        echo "## Deployment Successful! 🚀" >> $GITHUB_STEP_SUMMARY
+        echo "## 🎉 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Cloud Provider: ${{ inputs.cloud_provider }}" >> $GITHUB_STEP_SUMMARY
-        echo "### Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "### 📍 Cloud Provider: ${{ inputs.cloud_provider }}" >> $GITHUB_STEP_SUMMARY
+        echo "### 🏷️ Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Outputs:" >> $GITHUB_STEP_SUMMARY
+        
+        # Extract key URLs based on provider
+        if [ "${{ inputs.cloud_provider }}" == "azure" ]; then
+          WEBSITE_DNS=$(terraform output -raw vm_dns_name 2>/dev/null || echo "N/A")
+          WEBSITE_URL=$(terraform output -raw frontend_url 2>/dev/null || echo "N/A")
+          API_URL=$(terraform output -raw api_via_apim_url 2>/dev/null || echo "N/A")
+          SSH_CMD=$(terraform output -raw ssh_connection 2>/dev/null || echo "N/A")
+          echo "### 🌐 Website Access" >> $GITHUB_STEP_SUMMARY
+          echo "- **DNS Name**: \`$WEBSITE_DNS\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Website URL**: $WEBSITE_URL" >> $GITHUB_STEP_SUMMARY
+          echo "- **API Gateway**: $API_URL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔐 SSH Access" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "$SSH_CMD" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ inputs.cloud_provider }}" == "gcp" ]; then
+          WEBSITE_DNS=$(terraform output -raw vm_dns_suggestion 2>/dev/null || echo "N/A")
+          WEBSITE_URL=$(terraform output -raw frontend_url 2>/dev/null || echo "N/A")
+          API_URL=$(terraform output -raw api_via_apigee_url 2>/dev/null || echo "N/A")
+          SSH_CMD=$(terraform output -raw ssh_connection 2>/dev/null || echo "N/A")
+          echo "### 🌐 Website Access" >> $GITHUB_STEP_SUMMARY
+          echo "- **DNS Name (via nip.io)**: \`$WEBSITE_DNS\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Website URL**: $WEBSITE_URL" >> $GITHUB_STEP_SUMMARY
+          echo "- **Apigee Gateway**: $API_URL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔐 SSH Access" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "$SSH_CMD" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ℹ️ **Note**: GCP doesn't auto-assign DNS names. Using nip.io service for convenience." >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ inputs.cloud_provider }}" == "aws" ]; then
+          WEBSITE_DNS=$(terraform output -raw instance_public_dns 2>/dev/null || echo "N/A")
+          WEBSITE_URL=$(terraform output -raw frontend_url 2>/dev/null || echo "N/A")
+          API_URL=$(terraform output -raw api_via_gateway_url 2>/dev/null || echo "N/A")
+          SSH_CMD=$(terraform output -raw ssh_connection 2>/dev/null || echo "N/A")
+          echo "### 🌐 Website Access" >> $GITHUB_STEP_SUMMARY
+          echo "- **DNS Name**: \`$WEBSITE_DNS\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Website URL**: $WEBSITE_URL" >> $GITHUB_STEP_SUMMARY
+          echo "- **API Gateway**: $API_URL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔐 SSH Access" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "$SSH_CMD" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📋 Default Credentials" >> $GITHUB_STEP_SUMMARY
+        echo "- **Admin**: admin / admin123" >> $GITHUB_STEP_SUMMARY
+        echo "- **User**: testuser / user123" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔍 Complete Outputs" >> $GITHUB_STEP_SUMMARY
+        echo "<details><summary>Click to expand all outputs</summary>" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         terraform output >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "</details>" >> $GITHUB_STEP_SUMMARY
 
     - name: Terraform Destroy
       if: inputs.action == 'destroy'
@@ -170,15 +226,19 @@ jobs:
           if [ "${{ inputs.cloud_provider }}" == "azure" ]; then
             FRONTEND_URL=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.frontend_url.value')
             API_URL=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.api_via_apim_url.value')
+            DNS_NAME=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.vm_dns_name.value')
           elif [ "${{ inputs.cloud_provider }}" == "gcp" ]; then
             FRONTEND_URL=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.frontend_url.value')
             API_URL=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.api_via_apigee_url.value')
+            DNS_NAME=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.vm_dns_suggestion.value')
           elif [ "${{ inputs.cloud_provider }}" == "aws" ]; then
             FRONTEND_URL=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.frontend_url.value')
             API_URL=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.api_via_gateway_url.value')
+            DNS_NAME=$(cat deployment-info/${{ inputs.cloud_provider }}-${{ inputs.environment }}.json | jq -r '.instance_public_dns.value')
           fi
           
           echo "Testing deployment on ${{ inputs.cloud_provider }}..."
+          echo "DNS Name: $DNS_NAME"
           echo "Frontend URL: $FRONTEND_URL"
           echo "API URL: $API_URL"
           
@@ -206,6 +266,7 @@ jobs:
           
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 🧪 Deployment Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ DNS Name: \`$DNS_NAME\`" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Frontend accessible at: $FRONTEND_URL" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Backend API accessible at: $FRONTEND_URL/api/products" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Status page: $FRONTEND_URL/status.html" >> $GITHUB_STEP_SUMMARY

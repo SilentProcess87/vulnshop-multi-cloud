@@ -308,22 +308,57 @@ aws iam create-access-key --user-name vulnshop-deployer
 After successful deployment, you'll receive output with important URLs and connection information:
 
 ### Azure Outputs
-- Frontend URL: `http://VM_PUBLIC_IP`
-- Backend URL: `http://VM_PUBLIC_IP:3001`
+- Frontend URL: `http://vulnshop-dev-XXXXXX.eastus.cloudapp.azure.com`
+- Backend URL: `http://vulnshop-dev-XXXXXX.eastus.cloudapp.azure.com:3001`
 - APIM Gateway URL: `https://APIM_GATEWAY_URL/api`
-- SSH Connection: `ssh azureuser@VM_PUBLIC_IP`
+- SSH Connection: `ssh azureuser@vulnshop-dev-XXXXXX.eastus.cloudapp.azure.com`
 
 ### GCP Outputs
-- Frontend URL: `http://VM_EXTERNAL_IP`
-- Backend URL: `http://VM_EXTERNAL_IP:3001`
+- Frontend URL: `http://34.56.78.90.nip.io` (using nip.io DNS service)
+- Backend URL: `http://34.56.78.90.nip.io:3001`
 - Apigee URL: `https://APIGEE_HOSTNAME/api`
-- SSH Connection: `ssh gceuser@VM_EXTERNAL_IP`
+- SSH Connection: `ssh gceuser@34.56.78.90`
 
 ### AWS Outputs
-- Frontend URL: `http://EC2_PUBLIC_IP`
-- Backend URL: `http://EC2_PUBLIC_IP:3001`
+- Frontend URL: `http://ec2-12-34-56-78.compute-1.amazonaws.com`
+- Backend URL: `http://ec2-12-34-56-78.compute-1.amazonaws.com:3001`
 - API Gateway URL: `https://API_GATEWAY_URL/dev/api`
-- SSH Connection: `ssh ec2-user@EC2_PUBLIC_IP`
+- SSH Connection: `ssh ec2-user@ec2-12-34-56-78.compute-1.amazonaws.com`
+
+## 🌐 DNS Configuration
+
+The deployment automatically configures DNS names for easier access:
+
+### Azure DNS
+- Azure automatically provides a fully qualified domain name (FQDN) for public IPs
+- Format: `vulnshop-{environment}-{random}.{region}.cloudapp.azure.com`
+- Example: `vulnshop-dev-abc123.eastus.cloudapp.azure.com`
+- This DNS name is stable and persists as long as the public IP exists
+
+### AWS DNS
+- AWS automatically assigns a public DNS name to EC2 instances
+- Format: `ec2-{ip-address}.{region}.compute.amazonaws.com`
+- Example: `ec2-52-23-45-67.us-east-1.compute.amazonaws.com`
+- This DNS name changes if the instance is stopped and restarted
+
+### GCP DNS
+- GCP doesn't automatically provide DNS names for Compute Engine instances
+- We use **nip.io** as a workaround - a free DNS service that maps IP addresses to hostnames
+- Format: `{ip-address}.nip.io`
+- Example: `34.56.78.90.nip.io` automatically resolves to `34.56.78.90`
+- This allows you to use a DNS name without setting up Cloud DNS
+
+### Custom Domain (Optional)
+If you want to use your own domain name:
+1. Point your domain's A record to the VM's public IP
+2. Update your application configuration to accept the new hostname
+3. Consider using a static/reserved IP to ensure stability
+
+### GitHub Actions Output
+The deployment workflow will display:
+- The DNS name prominently at the top of the summary
+- Direct links to access your website using the DNS name
+- SSH commands using the DNS name for easier access
 
 ## 🧪 Testing the Deployment
 
