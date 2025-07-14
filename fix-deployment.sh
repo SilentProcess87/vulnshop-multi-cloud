@@ -120,7 +120,9 @@ EOF
 
 # Start backend
 pm2 delete vulnshop-backend 2>/dev/null || true
-pm2 start ecosystem.config.js
+cd backend
+pm2 start server.js --name vulnshop-backend
+cd ..
 pm2 save
 
 # Step 9: Verify everything is working
