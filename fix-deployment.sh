@@ -1,128 +1,168 @@
 #!/bin/bash
 
-# Fix VulnShop Deployment Script
-echo "Starting VulnShop deployment fix..."
+# Quick fix script for VulnShop deployment issues
+set -e
 
-# Create necessary directories
-sudo mkdir -p /var/www
-cd /var/www
+echo "🔧 Running quick fixes for VulnShop deployment..."
 
-# Clone the repository
-echo "Cloning repository..."
-sudo git clone https://github.com/SilentProcess87/vulnshop-multi-cloud.git vulnshop
-if [ $? -ne 0 ]; then
-    echo "Failed to clone repository. Please check network connectivity."
-    exit 1
-fi
+# Colors
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-cd vulnshop
-sudo git checkout main
+# Step 1: Check and update Node.js
+echo -e "${GREEN}Step 1: Checking Node.js version...${NC}"
+NODE_VERSION=$(node -v 2>/dev/null | cut -d'v' -f2 || echo "0")
+NODE_MAJOR=$(echo $NODE_VERSION | cut -d'.' -f1)
 
-# Set correct permissions
-sudo chown -R www-data:www-data /var/www/vulnshop
-
-# Check if server.js exists in the root (for backward compatibility)
-if [ -f "/var/www/vulnshop/server.js" ]; then
-    echo "Found server.js in root directory"
-    # Create backend directory and copy server files
-    sudo mkdir -p /var/www/vulnshop/backend
-    sudo cp /var/www/vulnshop/server.js /var/www/vulnshop/backend/
-    sudo cp /var/www/vulnshop/package.json /var/www/vulnshop/backend/
-    if [ -f "/var/www/vulnshop/package-lock.json" ]; then
-        sudo cp /var/www/vulnshop/package-lock.json /var/www/vulnshop/backend/
-    fi
-fi
-
-# Install backend dependencies
-echo "Installing backend dependencies..."
-cd /var/www/vulnshop/backend
-sudo -u www-data npm install
-
-# Check if frontend exists
-if [ -d "/var/www/vulnshop/frontend" ]; then
-    echo "Building frontend..."
-    cd /var/www/vulnshop/frontend
-    sudo -u www-data npm install
-    sudo -u www-data npm run build
+if [ "$NODE_MAJOR" -lt 16 ]; then
+    echo -e "${YELLOW}Node.js version is too old. Installing Node.js 18...${NC}"
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+    echo -e "${GREEN}Node.js updated to $(node -v)${NC}"
 else
-    echo "Frontend directory not found. Creating static files from public directory..."
-    # If no frontend directory, check for public directory
-    if [ -d "/var/www/vulnshop/public" ]; then
-        sudo mkdir -p /var/www/vulnshop/frontend/dist
-        sudo cp -r /var/www/vulnshop/public/* /var/www/vulnshop/frontend/dist/
-    fi
+    echo -e "${GREEN}Node.js version is OK: $(node -v)${NC}"
 fi
 
-# Setup Nginx configuration
-echo "Configuring Nginx..."
-sudo tee /etc/nginx/sites-available/vulnshop > /dev/null <<'EOF'
+# Step 2: Navigate to the correct directory
+cd /var/www/vulnshop || {
+    echo -e "${RED}ERROR: Cannot find /var/www/vulnshop${NC}"
+    exit 1
+}
+
+# Step 3: Stop all services
+echo -e "${GREEN}Step 2: Stopping all services...${NC}"
+pm2 stop all 2>/dev/null || true
+sudo lsof -ti:3001 | xargs sudo kill -9 2>/dev/null || true
+
+# Step 4: Clean install backend
+echo -e "${GREEN}Step 3: Reinstalling backend...${NC}"
+cd backend
+rm -rf node_modules package-lock.json
+npm install --production
+
+# Step 5: Clean install and build frontend
+echo -e "${GREEN}Step 4: Reinstalling and building frontend...${NC}"
+cd ../frontend
+rm -rf node_modules package-lock.json dist
+npm install
+npm run build
+
+# Step 6: Deploy frontend
+echo -e "${GREEN}Step 5: Deploying frontend...${NC}"
+sudo rm -rf /var/www/html/*
+sudo cp -r dist/* /var/www/html/
+
+# Step 7: Fix nginx configuration
+echo -e "${GREEN}Step 6: Fixing nginx configuration...${NC}"
+sudo tee /etc/nginx/sites-available/default > /dev/null <<'EOF'
 server {
-    listen 80;
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    root /var/www/html;
+    index index.html;
+
     server_name _;
-    
-    # Serve frontend
+
+    # Handle all frontend routes
     location / {
-        root /var/www/vulnshop/frontend/dist;
         try_files $uri $uri/ /index.html;
-        
-        # If frontend/dist doesn't exist, try public directory
-        if (!-d /var/www/vulnshop/frontend/dist) {
-            root /var/www/vulnshop/public;
-        }
     }
-    
+
     # Proxy API requests to backend
     location /api/ {
-        proxy_pass http://localhost:3001/api/;
+        proxy_pass http://127.0.0.1:3001/api/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
+        
+        # CORS headers
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE' always;
+        add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept, Authorization' always;
     }
 }
 EOF
 
-# Remove default site and enable vulnshop
-sudo rm -f /etc/nginx/sites-enabled/default
-sudo ln -sf /etc/nginx/sites-available/vulnshop /etc/nginx/sites-enabled/
+# Test and reload nginx
 sudo nginx -t && sudo systemctl reload nginx
 
-# Create and start backend service
-echo "Setting up backend service..."
-sudo tee /etc/systemd/system/vulnshop-backend.service > /dev/null <<'EOF'
-[Unit]
-Description=VulnShop Backend
-After=network.target
+# Step 8: Start backend with PM2
+echo -e "${GREEN}Step 7: Starting backend...${NC}"
+cd ../backend
 
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/var/www/vulnshop/backend
-Environment=NODE_ENV=production
-Environment=PORT=3001
-ExecStart=/usr/bin/node server.js
-Restart=on-failure
-RestartSec=10
+# Remove old database for fresh start
+rm -f vulnshop.db
 
-[Install]
-WantedBy=multi-user.target
+# Create PM2 config
+cat > ecosystem.config.js <<EOF
+module.exports = {
+  apps: [{
+    name: 'vulnshop-backend',
+    script: 'server.js',
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3001
+    }
+  }]
+};
 EOF
 
-# Start backend service
-sudo systemctl daemon-reload
-sudo systemctl enable vulnshop-backend
-sudo systemctl start vulnshop-backend
+# Start backend
+pm2 delete vulnshop-backend 2>/dev/null || true
+pm2 start ecosystem.config.js
+pm2 save
 
-# Check service status
-echo "Checking services..."
-sudo systemctl status vulnshop-backend --no-pager
-sudo systemctl status nginx --no-pager
+# Step 9: Verify everything is working
+echo -e "${GREEN}Step 8: Verifying deployment...${NC}"
+sleep 3
 
-echo "Deployment fix complete!"
-echo "Frontend URL: http://$(hostname -f)"
-echo "Backend API URL: http://$(hostname -f):3001/api"
-echo "API via Nginx: http://$(hostname -f)/api" 
+# Check backend
+if curl -s http://localhost:3001/api/products > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ Backend is running${NC}"
+else
+    echo -e "${RED}❌ Backend is not responding${NC}"
+    echo "Backend logs:"
+    pm2 logs vulnshop-backend --lines 10 --nostream
+fi
+
+# Check frontend
+if curl -s http://localhost > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ Frontend is accessible${NC}"
+else
+    echo -e "${RED}❌ Frontend is not accessible${NC}"
+fi
+
+# Check API proxy through nginx
+if curl -s http://localhost/api/products > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ API proxy is working${NC}"
+else
+    echo -e "${RED}❌ API proxy is not working${NC}"
+fi
+
+echo ""
+echo "========================================"
+echo -e "${GREEN}Fix script completed!${NC}"
+echo "========================================"
+echo ""
+echo "Your site should now be accessible at:"
+echo "  http://$(curl -s ifconfig.me 2>/dev/null || echo 'your-server-ip')"
+echo ""
+echo "Test credentials:"
+echo "  Admin: admin / admin123"
+echo "  User: testuser / user123"
+echo ""
+echo "If you still have issues, check:"
+echo "  - Backend logs: pm2 logs vulnshop-backend"
+echo "  - Nginx error logs: sudo tail -f /var/log/nginx/error.log"
+echo "" 

@@ -13,8 +13,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Configuration
-APP_DIR="/home/azureuser/vulnshop"
+# Configuration - Updated to match your setup
+APP_DIR="/var/www/vulnshop"
 FRONTEND_PORT=3000
 BACKEND_PORT=3001
 
@@ -31,9 +31,17 @@ print_warning() {
     echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] WARNING:${NC} $1"
 }
 
-# Check if running as the correct user
-if [ "$USER" != "azureuser" ]; then
-    print_warning "Script should be run as 'azureuser'. Current user: $USER"
+# Check Node.js version
+print_status "Checking Node.js version..."
+NODE_VERSION=$(node -v | cut -d'v' -f2)
+NODE_MAJOR=$(echo $NODE_VERSION | cut -d'.' -f1)
+
+if [ "$NODE_MAJOR" -lt 16 ]; then
+    print_error "Node.js version $NODE_VERSION is too old. Vite requires Node.js 16 or higher."
+    print_status "Updating Node.js to version 18..."
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+    print_status "Node.js updated to $(node -v)"
 fi
 
 # Navigate to application directory
@@ -58,9 +66,10 @@ git fetch origin
 git reset --hard origin/main
 git pull origin main
 
-# Remove old node_modules to ensure clean install
+# Remove old node_modules and package-lock files to ensure clean install
 print_status "Cleaning up old dependencies..."
 rm -rf backend/node_modules frontend/node_modules
+rm -f backend/package-lock.json frontend/package-lock.json
 
 # Install backend dependencies
 print_status "Installing backend dependencies..."
@@ -73,7 +82,14 @@ cd ../frontend
 npm install
 
 print_status "Building frontend for production..."
-npm run build
+npm run build || {
+    print_error "Frontend build failed. Checking for common issues..."
+    print_status "Clearing npm cache and retrying..."
+    npm cache clean --force
+    rm -rf node_modules package-lock.json
+    npm install
+    npm run build
+}
 
 # Copy frontend build to nginx directory
 print_status "Deploying frontend to nginx..."
@@ -97,9 +113,9 @@ server {
         try_files \$uri \$uri/ /index.html;
     }
 
-    # API proxy
-    location /api {
-        proxy_pass http://localhost:$BACKEND_PORT;
+    # API proxy - Fixed to match actual backend routes
+    location /api/ {
+        proxy_pass http://localhost:$BACKEND_PORT/api/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -149,12 +165,13 @@ module.exports = {
 EOF
 
 # Start backend with PM2
+pm2 delete vulnshop-backend 2>/dev/null || true
 pm2 start ecosystem.config.js
 pm2 save
 
 # Setup PM2 to start on boot
 print_status "Setting up PM2 startup..."
-sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u azureuser --hp /home/azureuser
+sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp $HOME || true
 pm2 save
 
 # Check service status
@@ -176,6 +193,8 @@ if curl -f http://localhost:$BACKEND_PORT/api/products > /dev/null 2>&1; then
     print_status "✅ Backend is responding correctly"
 else
     print_error "❌ Backend is not responding"
+    print_status "Checking backend logs..."
+    pm2 logs vulnshop-backend --lines 20
 fi
 
 # Test frontend through nginx
@@ -193,7 +212,7 @@ echo "========================================"
 echo ""
 echo "Access your application at:"
 echo "  - Frontend: http://$(curl -s ifconfig.me 2>/dev/null || echo 'your-server-ip')"
-echo "  - Backend API: http://$(curl -s ifconfig.me 2>/dev/null || echo 'your-server-ip'):$BACKEND_PORT/api"
+echo "  - Backend API: http://$(curl -s ifconfig.me 2>/dev/null || echo 'your-server-ip')/api"
 echo ""
 echo "Default credentials:"
 echo "  - Admin: admin / admin123"
