@@ -42,9 +42,9 @@ const LoginPage = () => {
 
   const fillTestCredentials = (type) => {
     if (type === 'admin') {
-      setFormData({ username: 'admin', password: 'password' })
+      setFormData({ username: 'admin', password: 'admin123' })
     } else {
-      setFormData({ username: 'john_doe', password: 'password' })
+      setFormData({ username: 'testuser', password: 'user123' })
     }
   }
 

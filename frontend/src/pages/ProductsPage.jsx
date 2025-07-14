@@ -56,7 +56,7 @@ const ProductsPage = () => {
   const handleAddToCart = (product) => {
     addToCart(product)
     // Simple success feedback
-    const button = document.querySelector(`#add-to-cart-${product._id}`)
+    const button = document.querySelector(`#add-to-cart-${product.id}`)
     if (button) {
       const originalText = button.textContent
       button.textContent = 'Added!'
@@ -185,7 +185,7 @@ const ProductsPage = () => {
         ) : (
           <div className="grid grid-3">
             {productsList.map((product) => (
-              <div key={product._id} className="product-card">
+              <div key={product.id} className="product-card">
                 <img 
                   src={product.image} 
                   alt={product.name}
@@ -204,14 +204,14 @@ const ProductsPage = () => {
                   
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <Link 
-                      to={`/products/${product._id}`}
+                      to={`/products/${product.id}`}
                       className="btn btn-outline"
                       style={{ flex: 1 }}
                     >
                       View Details
                     </Link>
                     <button
-                      id={`add-to-cart-${product._id}`}
+                      id={`add-to-cart-${product.id}`}
                       onClick={() => handleAddToCart(product)}
                       className="btn btn-primary"
                       style={{ flex: 1 }}

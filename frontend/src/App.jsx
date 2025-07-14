@@ -71,16 +71,16 @@ function App() {
 
   const addToCart = (product, quantity = 1) => {
     setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.id === product._id)
+      const existingItem = prevCart.find(item => item.id === product.id)
       if (existingItem) {
         return prevCart.map(item =>
-          item.id === product._id
+          item.id === product.id
             ? { ...item, quantity: item.quantity + quantity }
             : item
         )
       } else {
         return [...prevCart, {
-          id: product._id,
+          id: product.id,
           name: product.name,
           price: product.price,
           image: product.image,
@@ -130,6 +130,14 @@ function App() {
       }}>
         <Router>
           <div className="App">
+            {/* Security Warning Banner */}
+            <div className="security-banner">
+              <div className="container">
+                <div className="security-banner-content">
+                  <strong>⚠️ SECURITY WARNING:</strong> This is a deliberately vulnerable application for educational purposes only. DO NOT deploy to production!
+                </div>
+              </div>
+            </div>
             <Header />
             <main className="main-content">
               <Routes>

@@ -27,19 +27,19 @@ const ProductDetailPage = () => {
   const fetchProductDetails = async () => {
     try {
       setLoading(true)
-      const productResponse = await products.getAll()
-      const foundProduct = productResponse.data.find(p => p._id === id)
+      const productResponse = await products.getById(id)
       
-      if (!foundProduct) {
+      if (!productResponse.data) {
         setError('Product not found')
         return
       }
       
-      setProduct(foundProduct)
+      setProduct(productResponse.data)
       
-      // Fetch reviews
-      const reviewsResponse = await reviews.getByProduct(id)
-      setProductReviews(reviewsResponse.data)
+      // Reviews will be included in the product response
+      if (productResponse.data.reviews) {
+        setProductReviews(productResponse.data.reviews)
+      }
     } catch (error) {
       setError('Failed to load product details')
       console.error('Error fetching product:', error)
@@ -74,8 +74,7 @@ const ProductDetailPage = () => {
     try {
       setSubmittingReview(true)
       
-      await reviews.create({
-        productId: id,
+      await reviews.create(id, {
         rating: reviewForm.rating,
         comment: reviewForm.comment // VULNERABILITY: XSS - raw comment sent without sanitization
       })
@@ -251,7 +250,7 @@ const ProductDetailPage = () => {
               <div>
                 {productReviews.map((review) => (
                   <div
-                    key={review._id}
+                    key={review.id}
                     style={{
                       borderBottom: '1px solid #e9ecef',
                       padding: '1.5rem 0',
@@ -259,12 +258,12 @@ const ProductDetailPage = () => {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                      <strong>{review.userId?.username || 'Anonymous'}</strong>
+                      <strong>{review.username || 'Anonymous'}</strong>
                       <div style={{ display: 'flex', gap: '0.2rem' }}>
                         {renderStars(review.rating)}
                       </div>
                       <span style={{ color: '#666', fontSize: '0.9rem' }}>
-                        {new Date(review.createdAt).toLocaleDateString()}
+                        {new Date(review.created_at).toLocaleDateString()}
                       </span>
                     </div>
                     

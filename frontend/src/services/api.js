@@ -34,8 +34,8 @@ api.interceptors.response.use(
 
 // Auth API calls
 export const auth = {
-  login: (credentials) => api.post('/auth/login', credentials),
-  register: (userData) => api.post('/auth/register', userData),
+  login: (credentials) => api.post('/login', credentials),
+  register: (userData) => api.post('/register', userData),
 }
 
 // Products API calls
@@ -43,6 +43,7 @@ export const products = {
   getAll: () => api.get('/products'),
   search: (query) => api.get(`/products/search?q=${encodeURIComponent(query)}`),
   create: (productData) => api.post('/products', productData),
+  getById: (id) => api.get(`/products/${id}`),
 }
 
 // Orders API calls
@@ -54,8 +55,7 @@ export const orders = {
 
 // Reviews API calls
 export const reviews = {
-  getByProduct: (productId) => api.get(`/reviews/${productId}`),
-  create: (reviewData) => api.post('/reviews', reviewData),
+  create: (productId, reviewData) => api.post(`/products/${productId}/reviews`, reviewData),
 }
 
 // Admin API calls
