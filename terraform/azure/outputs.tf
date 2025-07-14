@@ -20,17 +20,17 @@ output "vm_dns_name" {
 
 output "apim_gateway_url" {
   description = "API Management gateway URL"
-  value       = azurerm_api_management.main.gateway_url
+  value       = local.apim_gateway_url
 }
 
 output "apim_developer_portal_url" {
   description = "API Management developer portal URL"
-  value       = azurerm_api_management.main.developer_portal_url
+  value       = var.use_existing_apim ? data.azurerm_api_management.existing[0].developer_portal_url : azurerm_api_management.main[0].developer_portal_url
 }
 
 output "apim_management_api_url" {
   description = "API Management management API URL"
-  value       = azurerm_api_management.main.management_api_url
+  value       = var.use_existing_apim ? data.azurerm_api_management.existing[0].management_api_url : azurerm_api_management.main[0].management_api_url
 }
 
 output "frontend_url" {
@@ -50,7 +50,7 @@ output "backend_url" {
 
 output "api_via_apim_url" {
   description = "API URL via APIM"
-  value       = "${azurerm_api_management.main.gateway_url}/api"
+  value       = "${local.apim_gateway_url}/api"
 }
 
 output "ssh_connection" {
@@ -64,7 +64,7 @@ output "deployment_summary" {
     website_dns_url = "http://${azurerm_public_ip.vm.fqdn}"
     website_ip_url  = "http://${azurerm_public_ip.vm.ip_address}"
     api_direct_url  = "http://${azurerm_public_ip.vm.fqdn}:3001/api"
-    api_gateway_url = "${azurerm_api_management.main.gateway_url}/api"
+    api_gateway_url = "${local.apim_gateway_url}/api"
     ssh_access      = "ssh ${var.admin_username}@${azurerm_public_ip.vm.fqdn}"
   }
 } 

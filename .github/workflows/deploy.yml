@@ -27,12 +27,28 @@ on:
         description: 'SSH Public Key (required for all providers)'
         required: true
         type: string
+      use_existing_apim:
+        description: 'Use existing Azure API Management (Azure only)'
+        required: false
+        type: boolean
+        default: false
+      existing_apim_name:
+        description: 'Existing APIM name (required if use_existing_apim is true)'
+        required: false
+        type: string
+      existing_apim_resource_group:
+        description: 'Existing APIM resource group (optional, defaults to new resource group)'
+        required: false
+        type: string
 
 env:
   TF_VAR_git_repo: ${{ github.server_url }}/${{ github.repository }}
   TF_VAR_git_branch: ${{ github.ref_name }}
   TF_VAR_environment: ${{ inputs.environment }}
   TF_VAR_ssh_public_key: ${{ inputs.ssh_public_key }}
+  TF_VAR_use_existing_apim: ${{ inputs.use_existing_apim }}
+  TF_VAR_existing_apim_name: ${{ inputs.existing_apim_name }}
+  TF_VAR_existing_apim_resource_group: ${{ inputs.existing_apim_resource_group }}
 
 jobs:
   deploy:

@@ -115,6 +115,11 @@ AWS_REGION  # AWS Region (default: us-east-1)
    - **Action**: Choose "deploy" or "destroy"
    - **Environment**: Environment name (e.g., "dev", "staging", "prod")
    - **SSH Public Key**: Paste your SSH public key content
+   
+   **For Azure deployments with existing APIM (optional):**
+   - **Use existing Azure API Management**: Check this box to use existing APIM
+   - **Existing APIM name**: Name of your existing APIM instance
+   - **Existing APIM resource group**: Resource group of the APIM (optional)
 
 ## 🔧 Manual Deployment (Local)
 
@@ -133,9 +138,36 @@ export TF_VAR_ssh_public_key="$(cat ~/.ssh/vulnshop.pub)"
 export TF_VAR_git_repo="https://github.com/yourusername/your-repo"
 export TF_VAR_apim_publisher_email="your-email@example.com"
 
-# Plan and apply
+# Option 1: Create new APIM (default - takes 30-45 minutes)
 terraform plan
 terraform apply
+
+# Option 2: Use existing APIM (much faster - ~5 minutes)
+export TF_VAR_use_existing_apim=true
+export TF_VAR_existing_apim_name="your-existing-apim-name"
+export TF_VAR_existing_apim_resource_group="your-apim-resource-group"  # Optional
+terraform plan
+terraform apply
+```
+
+#### Using Existing Azure API Management
+
+Azure API Management takes 30-45 minutes to create. To save time, you can use an existing APIM instance:
+
+**Benefits:**
+- Deployment time reduced from ~45 minutes to ~5 minutes
+- Reuse existing APIM configuration and policies
+- Cost-effective for multiple deployments
+
+**Requirements:**
+- The existing APIM must be accessible from your subscription
+- You need the APIM name and (optionally) its resource group name
+- The APIM should have sufficient capacity for the new API
+
+**How to find your existing APIM:**
+```bash
+# List all APIM instances in your subscription
+az apim list --query "[].{Name:name, ResourceGroup:resourceGroup, Location:location}" -o table
 ```
 
 ### GCP

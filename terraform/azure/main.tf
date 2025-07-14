@@ -192,8 +192,23 @@ resource "azurerm_linux_virtual_machine" "main" {
   }
 }
 
-# API Management Service
+# Data source to look up existing API Management instance
+data "azurerm_api_management" "existing" {
+  count               = var.use_existing_apim ? 1 : 0
+  name                = var.existing_apim_name
+  resource_group_name = var.existing_apim_resource_group != "" ? var.existing_apim_resource_group : azurerm_resource_group.main.name
+}
+
+# Local values to handle either created or existing APIM
+locals {
+  apim_name           = var.use_existing_apim ? data.azurerm_api_management.existing[0].name : azurerm_api_management.main[0].name
+  apim_resource_group = var.use_existing_apim ? data.azurerm_api_management.existing[0].resource_group_name : azurerm_api_management.main[0].resource_group_name
+  apim_gateway_url    = var.use_existing_apim ? data.azurerm_api_management.existing[0].gateway_url : azurerm_api_management.main[0].gateway_url
+}
+
+# API Management Service (only created if not using existing)
 resource "azurerm_api_management" "main" {
+  count               = var.use_existing_apim ? 0 : 1
   name                = "apim-vulnshop-${random_string.suffix.result}"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
@@ -210,8 +225,8 @@ resource "azurerm_api_management" "main" {
 # API Management API
 resource "azurerm_api_management_api" "vulnshop" {
   name                = "vulnshop-api"
-  resource_group_name = azurerm_resource_group.main.name
-  api_management_name = azurerm_api_management.main.name
+  resource_group_name = local.apim_resource_group
+  api_management_name = local.apim_name
   revision            = "1"
   display_name        = "VulnShop API"
   path                = "api"
@@ -227,8 +242,8 @@ resource "azurerm_api_management_api" "vulnshop" {
 # API Management Backend
 resource "azurerm_api_management_backend" "vulnshop" {
   name                = "vulnshop-backend"
-  resource_group_name = azurerm_resource_group.main.name
-  api_management_name = azurerm_api_management.main.name
+  resource_group_name = local.apim_resource_group
+  api_management_name = local.apim_name
   protocol            = "http"
   url                 = "http://${azurerm_linux_virtual_machine.main.private_ip_address}:3001/api"
 }
@@ -236,8 +251,8 @@ resource "azurerm_api_management_backend" "vulnshop" {
 # API Management Product
 resource "azurerm_api_management_product" "vulnshop" {
   product_id            = "vulnshop"
-  api_management_name   = azurerm_api_management.main.name
-  resource_group_name   = azurerm_resource_group.main.name
+  api_management_name   = local.apim_name
+  resource_group_name   = local.apim_resource_group
   display_name          = "VulnShop Product"
   description           = "Vulnerable e-commerce API for educational purposes"
   subscription_required = false
@@ -248,15 +263,15 @@ resource "azurerm_api_management_product" "vulnshop" {
 resource "azurerm_api_management_product_api" "vulnshop" {
   api_name            = azurerm_api_management_api.vulnshop.name
   product_id          = azurerm_api_management_product.vulnshop.product_id
-  api_management_name = azurerm_api_management.main.name
-  resource_group_name = azurerm_resource_group.main.name
+  api_management_name = local.apim_name
+  resource_group_name = local.apim_resource_group
 }
 
 # API Management Policy (Vulnerable CORS)
 resource "azurerm_api_management_api_policy" "vulnshop" {
   api_name            = azurerm_api_management_api.vulnshop.name
-  api_management_name = azurerm_api_management.main.name
-  resource_group_name = azurerm_resource_group.main.name
+  api_management_name = local.apim_name
+  resource_group_name = local.apim_resource_group
 
   xml_content = file("../../policies/cors-policy.xml")
 }

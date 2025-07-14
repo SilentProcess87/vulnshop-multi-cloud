@@ -53,4 +53,22 @@ variable "git_branch" {
   description = "Git branch to deploy"
   type        = string
   default     = "main"
+}
+
+variable "use_existing_apim" {
+  description = "Whether to use an existing API Management instance"
+  type        = bool
+  default     = false
+}
+
+variable "existing_apim_name" {
+  description = "Name of the existing API Management instance (if use_existing_apim is true)"
+  type        = string
+  default     = ""
+}
+
+variable "existing_apim_resource_group" {
+  description = "Resource group of the existing API Management instance (if use_existing_apim is true)"
+  type        = string
+  default     = ""
 } 
