@@ -140,11 +140,13 @@ const ProductDetailPage = () => {
                 width: '100%',
                 height: '400px',
                 objectFit: 'cover',
-                borderRadius: '12px'
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)'
               }}
               onError={(e) => {
-                e.target.src = 'https://via.placeholder.com/400x400?text=No+Image'
+                e.target.src = `https://via.placeholder.com/600x400/6366f1/ffffff?text=${encodeURIComponent(product.name)}`
               }}
+              loading="eager"
             />
           </div>
           

@@ -161,9 +161,18 @@ const HomePage = () => {
           </div>
           
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '3rem' }}>
-              <div className="spinner"></div>
-              <p style={{ marginTop: '1rem', color: '#64748b' }}>Loading products...</p>
+            <div className="grid grid-3">
+              {[...Array(3)].map((_, index) => (
+                <div key={index} className="product-skeleton">
+                  <div className="skeleton-image"></div>
+                  <div style={{ padding: '1.5rem' }}>
+                    <div className="skeleton-text title"></div>
+                    <div className="skeleton-text description"></div>
+                    <div className="skeleton-text description" style={{ width: '90%' }}></div>
+                    <div className="skeleton-text price"></div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="grid grid-3">
@@ -173,6 +182,10 @@ const HomePage = () => {
                     src={product.image} 
                     alt={product.name}
                     className="product-image"
+                    onError={(e) => {
+                      e.target.src = `https://via.placeholder.com/500x500/6366f1/ffffff?text=${encodeURIComponent(product.name)}`
+                    }}
+                    loading="lazy"
                   />
                   <div className="product-info">
                     <h3 className="product-name">{product.name}</h3>

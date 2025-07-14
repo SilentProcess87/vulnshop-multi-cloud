@@ -133,11 +133,21 @@ async function initializeData() {
 
     // Create sample products
     const products = [
-      ['Vulnerable Laptop', 'A laptop with intentional security flaws for testing', 999.99, 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500', 'Electronics'],
-      ['Insecure Router', 'Network router with default credentials', 149.99, 'https://images.unsplash.com/photo-1544717342-9eb2c7a3d56c?w=500', 'Electronics'],
-      ['Pwned Phone', 'Smartphone with exploitable vulnerabilities', 599.99, 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500', 'Electronics'],
-      ['Hackable Smartwatch', 'Wearable device with security issues', 299.99, 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500', 'Electronics'],
-      ['Leaky Database Server', 'Server with intentional data exposure', 1999.99, 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=500', 'Electronics']
+      ['Vulnerable Laptop', 'High-performance laptop with known security vulnerabilities for penetration testing', 999.99, 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&q=80', 'Laptops'],
+      ['Insecure Router', 'Network router with default credentials and open ports', 149.99, 'https://images.unsplash.com/photo-1606904825846-647eb07f5be2?w=500&q=80', 'Networking'],
+      ['Pwned Phone', 'Smartphone with pre-installed vulnerable apps and weak encryption', 599.99, 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500&q=80', 'Phones'],
+      ['Hackable Smartwatch', 'Wearable device with exploitable Bluetooth vulnerabilities', 299.99, 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80', 'Wearables'],
+      ['Leaky Database Server', 'Server hardware optimized for demonstrating SQL injection attacks', 1999.99, 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=500&q=80', 'Servers'],
+      ['Vulnerable Webcam', 'IP camera with hardcoded credentials and no encryption', 89.99, 'https://images.unsplash.com/photo-1567653418876-5bb0e566e1c2?w=500&q=80', 'Security'],
+      ['Exploitable Smart Speaker', 'Voice assistant with weak authentication protocols', 129.99, 'https://images.unsplash.com/photo-1543512214-318c7553f230?w=500&q=80', 'Smart Home'],
+      ['Insecure USB Drive', '32GB USB drive with disabled write protection and autorun enabled', 39.99, 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=500&q=80', 'Storage'],
+      ['Hackable Drone', 'Quadcopter with unencrypted control signals and open telemetry', 899.99, 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=500&q=80', 'Drones'],
+      ['Vulnerable Smart Lock', 'Bluetooth door lock with replay attack vulnerabilities', 199.99, 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&q=80', 'Smart Home'],
+      ['Pwned Tablet', 'Android tablet with outdated OS and pre-rooted system', 349.99, 'https://images.unsplash.com/photo-1561154464-82e9adf32764?w=500&q=80', 'Tablets'],
+      ['Insecure Baby Monitor', 'WiFi baby monitor with default passwords and no SSL', 79.99, 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=500&q=80', 'Security'],
+      ['Exploitable Gaming Console', 'Gaming system with homebrew vulnerabilities enabled', 499.99, 'https://images.unsplash.com/photo-1486401899868-0e435ed85128?w=500&q=80', 'Gaming'],
+      ['Hackable Smart TV', '55-inch TV with exposed debugging ports and weak firmware', 799.99, 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=500&q=80', 'Electronics'],
+      ['Vulnerable Fitness Tracker', 'Activity tracker with unencrypted data transmission', 59.99, 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=500&q=80', 'Wearables']
     ];
 
     for (const product of products) {
