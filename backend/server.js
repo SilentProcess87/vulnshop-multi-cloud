@@ -127,13 +127,19 @@ async function initializeData() {
 
     // Create 1000 fake users
     for (let i = 0; i < 1000; i++) {
-      const username = faker.internet.username();
-      const email = faker.internet.email();
-      const password = await bcrypt.hash('password123', 10);
-      await db.run(
-        'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
-        [username, email, password, 'user']
-      );
+      try {
+        const username = faker.internet.username();
+        const email = faker.internet.email();
+        const password = await bcrypt.hash('password123', 10);
+        await db.run(
+          'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
+          [username, email, password, 'user']
+        );
+      } catch (error) {
+        if (error.code !== 'SQLITE_CONSTRAINT') {
+          console.error('Error creating fake user:', error);
+        }
+      }
     }
 
     // Create 50 fake products

@@ -59,13 +59,17 @@ write_files:
 runcmd:
   # Clone the repository
   - cd /var/www
-  - git clone ${git_repo} vulnshop
+  - git clone ${git_repo} vulnshop || (cd vulnshop && git pull)
   - cd vulnshop
-  - git checkout ${git_branch}
+  - git fetch --all
+  - git reset --hard origin/${git_branch}
+  - git pull origin ${git_branch}
   - chown -R www-data:www-data /var/www/vulnshop
   
   # Install backend dependencies
   - cd /var/www/vulnshop/backend
+  - rm -f /var/www/vulnshop/backend/vulnshop.db
+  - chmod -R 777 /var/www/vulnshop/backend
   - sudo -u www-data npm install
   
   # Install frontend dependencies and build
@@ -81,11 +85,11 @@ runcmd:
   # Start backend service
   - systemctl daemon-reload
   - systemctl enable vulnshop-backend
-  - systemctl start vulnshop-backend
+  - systemctl restart vulnshop-backend
   
   # Enable and start services
   - systemctl enable nginx
-  - systemctl start nginx
+  - systemctl restart nginx
   
   # Create a simple status endpoint
   - |
