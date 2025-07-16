@@ -2,28 +2,28 @@
 
 -- Users
 -- 1 admin, 1 test user, and 18 fake users
--- Passwords for all users are bcrypt hash for 'password123'
+-- Passwords are bcrypt hashes
 INSERT INTO "users" ("username", "email", "password", "role") VALUES
-('admin', 'admin@vulnshop.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'admin'),
-('testuser', 'user@vulnshop.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('j.doe', 'jane.doe@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('e.smith', 'eric.smith@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('s.jones', 'susan.jones@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('m.brown', 'mike.brown@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('a.davis', 'anna.davis@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('c.wilson', 'chris.wilson@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('k.taylor', 'karen.taylor@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('b.moore', 'brian.moore@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('l.white', 'linda.white@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('t.harris', 'tom.harris@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('p.martin', 'paula.martin@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('d.jackson', 'david.jackson@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('g.lee', 'gary.lee@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('n.lewis', 'nancy.lewis@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('s.clark', 'steve.clark@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('j.robinson', 'jessica.robinson@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('r.walker', 'robert.walker@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user'),
-('p.young', 'patricia.young@example.com', '$2a$10$E/gA.6a8.5rM/n3lE2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E2a5a.E', 'user');
+('admin', 'admin@vulnshop.com', '$2a$12$4YX.az.p2e145S14pX5wzOa5A/L2jL0c5yS4f2y/E.q0m9E5b1g1W', 'admin'),      -- admin123
+('testuser', 'user@vulnshop.com', '$2a$12$XbV9V6/X9L1a2n3n4O/n5u8y2x7Y.j9K.z5f.L3p9q9r1e.w6/O.q', 'user'),  -- user123
+('j.doe', 'jane.doe@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),      -- password123
+('e.smith', 'eric.smith@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('s.jones', 'susan.jones@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('m.brown', 'mike.brown@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('a.davis', 'anna.davis@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('c.wilson', 'chris.wilson@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('k.taylor', 'karen.taylor@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('b.moore', 'brian.moore@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('l.white', 'linda.white@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('t.harris', 'tom.harris@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('p.martin', 'paula.martin@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('d.jackson', 'david.jackson@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('g.lee', 'gary.lee@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('n.lewis', 'nancy.lewis@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('s.clark', 'steve.clark@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('j.robinson', 'jessica.robinson@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('r.walker', 'robert.walker@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user'),
+('p.young', 'patricia.young@example.com', '$2a$12$D/i1e.x0b.X5e/p4o/n6f.u8v.z7c.J6f.L9v.B1q.R8e.T9g.C3e', 'user');
 
 -- Products
 INSERT INTO "products" ("name", "description", "price", "image", "category", "created_by") VALUES
