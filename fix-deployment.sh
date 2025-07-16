@@ -93,7 +93,8 @@ API_DISPLAY_NAME="VulnShop API"
 BACKEND_URL="http://$(curl -s ifconfig.me)/api"
 
 echo "Updating APIM with the latest Swagger definition..."
-az apim api import --path /var/www/vulnshop/apim-swagger.json \
+az apim api import --specification-path /var/www/vulnshop/apim-swagger.json \
+    --path "api" \
     --resource-group $RESOURCE_GROUP \
     --service-name $APIM_NAME \
     --api-id $API_ID \
@@ -102,11 +103,11 @@ az apim api import --path /var/www/vulnshop/apim-swagger.json \
     --subscription-required false \
     --specification-format Swagger
 
-echo "Applying OWASP Top 10 policy..."
-az apim api policy import --path /var/www/vulnshop/policies/owasp-top10-protection.xml \
-    --resource-group $RESOURCE_GROUP \
-    --service-name $APIM_NAME \
-    --api-id $API_ID
+# echo "Applying OWASP Top 10 policy..."
+# az apim api policy import --path /var/www/vulnshop/policies/owasp-top10-protection.xml \
+#     --resource-group $RESOURCE_GROUP \
+#     --service-name $APIM_NAME \
+#     --api-id $API_ID
 
 # Step 10: Verify everything is working
 echo -e "${GREEN}Step 9: Verifying deployment...${NC}"
