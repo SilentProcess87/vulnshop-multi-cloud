@@ -62,10 +62,10 @@ npm run build
 echo -e "${GREEN}Step 5: Restarting Nginx...${NC}"
 sudo systemctl restart nginx
 
-# Step 7: Start backend with PM2 as www-data user
+# Step 7: Start backend with PM2 
 echo -e "${GREEN}Step 6: Starting backend with PM2...${NC}"
 cd /var/www/vulnshop/backend
-pm2 start server.js --name vulnshop-backend --force --user www-data --group www-data
+pm2 start server.js --name vulnshop-backend --force 
 
 # Step 8: Save PM2 process list
 echo -e "${GREEN}Step 7: Saving PM2 process list...${NC}"
