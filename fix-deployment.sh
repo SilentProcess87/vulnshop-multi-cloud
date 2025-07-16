@@ -49,22 +49,14 @@ cd backend
 rm -f ./vulnshop.db
 chmod -R 777 .
 rm -rf node_modules package-lock.json
-
-# Find the full path to npm
-NPM_PATH=$(which npm)
-if [ -z "$NPM_PATH" ]; then
-    echo -e "${RED}ERROR: npm not found. Please ensure Node.js and npm are installed and in the PATH.${NC}"
-    exit 1
-fi
-
-sudo -u www-data "$NPM_PATH" install --production
+sudo npm install --production
 
 # Step 5: Clean install and build frontend
 # The user's provided snippet was incomplete. Assuming this is what it should be.
 cd /var/www/vulnshop/frontend
 rm -rf node_modules package-lock.json
-sudo -u www-data "$NPM_PATH" install
-sudo -u www-data "$NPM_PATH" run build
+sudo npm install
+sudo npm run build
 
 # Step 6: Restart Nginx
 echo -e "${GREEN}Step 5: Restarting Nginx...${NC}"
