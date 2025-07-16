@@ -108,7 +108,7 @@ APIM_NAME=$(echo "$APIM_DETAILS" | awk '{print $1}')
 RESOURCE_GROUP=$(echo "$APIM_DETAILS" | awk '{print $2}')
 API_ID="vulnshop-api"
 API_DISPLAY_NAME="VulnShop API"
-BACKEND_URL="http://$(curl -s ifconfig.me)/api"
+BACKEND_URL="http://$(curl -s ifconfig.me)"
 
 echo -e "${GREEN}Discovered APIM: ${APIM_NAME} in RG: ${RESOURCE_GROUP}${NC}"
 
