@@ -72,8 +72,43 @@ echo -e "${GREEN}Step 7: Saving PM2 process list...${NC}"
 cd /var/www/vulnshop
 pm2 save
 
-# Step 9: Verify everything is working
-echo -e "${GREEN}Step 8: Verifying deployment...${NC}"
+# Step 9: Update Azure API Management
+echo -e "${GREEN}Step 8: Updating Azure API Management...${NC}"
+
+# Check for Azure CLI and install if not present
+if ! [ -x "$(command -v az)" ]; then
+    echo -e "${YELLOW}Azure CLI not found. Installing now...${NC}"
+    curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+fi
+
+# Azure login - this will require interactive login
+echo -e "${YELLOW}Please log in to Azure...${NC}"
+az login
+
+# Configuration - replace with your actual values or use environment variables
+RESOURCE_GROUP="vulnshop-rg"
+APIM_NAME="vulnshop-apim"
+API_ID="vulnshop-api"
+API_DISPLAY_NAME="VulnShop API"
+BACKEND_URL="http://$(curl -s ifconfig.me)/api"
+
+echo "Updating APIM with the latest Swagger definition..."
+az apim api import --path /var/www/vulnshop/apim-swagger.json \
+    --resource-group $RESOURCE_GROUP \
+    --service-name $APIM_NAME \
+    --api-id $API_ID \
+    --display-name "$API_DISPLAY_NAME" \
+    --service-url $BACKEND_URL \
+    --subscription-required false
+
+echo "Applying OWASP Top 10 policy..."
+az apim api policy import --path /var/www/vulnshop/policies/owasp-top10-protection.xml \
+    --resource-group $RESOURCE_GROUP \
+    --service-name $APIM_NAME \
+    --api-id $API_ID
+
+# Step 10: Verify everything is working
+echo -e "${GREEN}Step 9: Verifying deployment...${NC}"
 sleep 3
 
 # Check backend

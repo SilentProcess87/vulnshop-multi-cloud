@@ -98,6 +98,17 @@ async function initializeDatabase() {
         FOREIGN KEY (product_id) REFERENCES products(id),
         FOREIGN KEY (user_id) REFERENCES users(id)
       );
+
+      CREATE TABLE IF NOT EXISTS cart_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL,
+        added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (product_id) REFERENCES products(id),
+        UNIQUE(user_id, product_id)
+      );
     `);
 
     console.log('Database initialized successfully');
@@ -773,6 +784,56 @@ app.get('/api/analytics/revenue', authenticateToken, async (req, res) => {
     });
   }
 });
+
+// NEW: Cart management endpoints
+// Get user's cart
+app.get('/api/cart', authenticateToken, async (req, res) => {
+  try {
+    const cartItems = await db.all(`
+      SELECT p.id, p.name, p.price, p.image, c.quantity 
+      FROM cart_items c
+      JOIN products p ON c.product_id = p.id
+      WHERE c.user_id = ?
+    `, [req.user.userId]);
+    res.json(cartItems);
+  } catch (error) {
+    console.error('Cart fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch cart' });
+  }
+});
+
+// Add item to cart
+app.post('/api/cart', authenticateToken, async (req, res) => {
+  try {
+    const { productId, quantity } = req.body;
+    
+    // Use INSERT OR IGNORE and UPDATE to handle existing items
+    await db.run(
+      'INSERT INTO cart_items (user_id, product_id, quantity) VALUES (?, ?, ?) ON CONFLICT(user_id, product_id) DO UPDATE SET quantity = quantity + ?',
+      [req.user.userId, productId, quantity, quantity]
+    );
+
+    res.status(201).json({ message: 'Item added to cart' });
+  } catch (error) {
+    console.error('Add to cart error:', error);
+    res.status(500).json({ error: 'Failed to add item to cart' });
+  }
+});
+
+// Remove item from cart
+app.delete('/api/cart/items/:productId', authenticateToken, async (req, res) => {
+  try {
+    await db.run(
+      'DELETE FROM cart_items WHERE user_id = ? AND product_id = ?',
+      [req.user.userId, req.params.productId]
+    );
+    res.status(204).send();
+  } catch (error) {
+    console.error('Remove from cart error:', error);
+    res.status(500).json({ error: 'Failed to remove item from cart' });
+  }
+});
+
 
 // Start server
 async function startServer() {
