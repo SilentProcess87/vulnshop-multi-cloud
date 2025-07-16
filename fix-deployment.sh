@@ -81,25 +81,41 @@ if ! [ -x "$(command -v az)" ]; then
     curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 fi
 
-# Azure login - this will require interactive login
+# # Azure login is required to query resource details
 # echo -e "${YELLOW}Please log in to Azure...${NC}"
 # az login
 
-# Configuration - replace with your actual values or use environment variables
-RESOURCE_GROUP="vulnshop-rg"
-APIM_NAME="vulnshop-apim"
+# Discover APIM instance dynamically
+echo "Discovering Azure APIM instance..."
+APIM_DETAILS=$(az apim list --query "[?contains(name, 'vulnshop-apim')].[name,resourceGroup]" -o tsv)
+
+if [ -z "$APIM_DETAILS" ]; then
+    echo -e "${RED}ERROR: Could not find any APIM service containing 'vulnshop-apim'. Please check the name and your Azure subscription.${NC}"
+    exit 1
+fi
+
+if [ $(echo "$APIM_DETAILS" | wc -l) -gt 1 ]; then
+    echo -e "${YELLOW}WARNING: Found multiple APIM services containing 'vulnshop-apim'. Using the first one.${NC}"
+    APIM_DETAILS=$(echo "$APIM_DETAILS" | head -n 1)
+fi
+
+APIM_NAME=$(echo "$APIM_DETAILS" | awk '{print $1}')
+RESOURCE_GROUP=$(echo "$APIM_DETAILS" | awk '{print $2}')
 API_ID="vulnshop-api"
 API_DISPLAY_NAME="VulnShop API"
 BACKEND_URL="http://$(curl -s ifconfig.me)/api"
 
+echo -e "${GREEN}Discovered APIM: ${APIM_NAME} in RG: ${RESOURCE_GROUP}${NC}"
+
+
 echo "Updating APIM with the latest Swagger definition..."
 az apim api import --specification-path /var/www/vulnshop/apim-swagger.json \
     --path "api" \
-    --resource-group $RESOURCE_GROUP \
-    --service-name $APIM_NAME \
-    --api-id $API_ID \
+    --resource-group "$RESOURCE_GROUP" \
+    --service-name "$APIM_NAME" \
+    --api-id "$API_ID" \
     --display-name "$API_DISPLAY_NAME" \
-    --service-url $BACKEND_URL \
+    --service-url "$BACKEND_URL" \
     --subscription-required false \
     --specification-format Swagger
 
