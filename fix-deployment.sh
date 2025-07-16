@@ -117,7 +117,7 @@ az apim api import --specification-path /var/www/vulnshop/apim-swagger.json \
     --display-name "$API_DISPLAY_NAME" \
     --service-url "$BACKEND_URL" \
     --subscription-required false \
-    --specification-format Swagger
+    --specification-format OpenApi
 
 # echo "Applying OWASP Top 10 policy..."
 # az apim api policy import --path /var/www/vulnshop/policies/owasp-top10-protection.xml \
