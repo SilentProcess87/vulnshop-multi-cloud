@@ -109,15 +109,30 @@ echo -e "${GREEN}Discovered APIM: ${APIM_NAME} in RG: ${RESOURCE_GROUP}${NC}"
 
 
 echo "Updating APIM with the latest Swagger definition..."
-az apim api import --specification-path /var/www/vulnshop/apim-swagger.json \
-    --path "api" \
-    --resource-group "$RESOURCE_GROUP" \
-    --service-name "$APIM_NAME" \
-    --api-id "$API_ID" \
-    --display-name "$API_DISPLAY_NAME" \
-    --service-url "$BACKEND_URL" \
-    --subscription-required false \
-    --specification-format OpenApi
+
+# Check if the API already exists to avoid "already exists" error on update
+if az apim api show --resource-group "$RESOURCE_GROUP" --service-name "$APIM_NAME" --api-id "$API_ID" &> /dev/null; then
+  echo "API '$API_ID' already exists. Importing changes..."
+  az apim api import --specification-path /var/www/vulnshop/apim-swagger.json \
+      --path "api" \
+      --resource-group "$RESOURCE_GROUP" \
+      --service-name "$APIM_NAME" \
+      --api-id "$API_ID" \
+      --service-url "$BACKEND_URL" \
+      --subscription-required false \
+      --specification-format OpenApi
+else
+  echo "API '$API_ID' does not exist. Creating new API..."
+  az apim api import --specification-path /var/www/vulnshop/apim-swagger.json \
+      --path "api" \
+      --resource-group "$RESOURCE_GROUP" \
+      --service-name "$APIM_NAME" \
+      --api-id "$API_ID" \
+      --display-name "$API_DISPLAY_NAME" \
+      --service-url "$BACKEND_URL" \
+      --subscription-required false \
+      --specification-format OpenApi
+fi
 
 # echo "Applying OWASP Top 10 policy..."
 # az apim api policy import --path /var/www/vulnshop/policies/owasp-top10-protection.xml \
