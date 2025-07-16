@@ -8,6 +8,10 @@ echo "🔧 Running quick fixes for VulnShop deployment..."
 # Change to the correct directory
 cd /var/www/vulnshop
 
+# Set ownership to www-data
+echo -e "${GREEN}Step 1: Setting file ownership...${NC}"
+sudo chown -R www-data:www-data /var/www/vulnshop
+
 # Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -45,23 +49,23 @@ cd backend
 rm -f ./vulnshop.db
 chmod -R 777 .
 rm -rf node_modules package-lock.json
-npm install --production
+sudo -u www-data npm install --production
 
 # Step 5: Clean install and build frontend
 # The user's provided snippet was incomplete. Assuming this is what it should be.
 cd /var/www/vulnshop/frontend
 rm -rf node_modules package-lock.json
-npm install
-npm run build
+sudo -u www-data npm install
+sudo -u www-data npm run build
 
 # Step 6: Restart Nginx
 echo -e "${GREEN}Step 5: Restarting Nginx...${NC}"
 sudo systemctl restart nginx
 
-# Step 7: Start backend with PM2
+# Step 7: Start backend with PM2 as www-data user
 echo -e "${GREEN}Step 6: Starting backend with PM2...${NC}"
 cd /var/www/vulnshop/backend
-pm2 start server.js --name vulnshop-backend --force
+pm2 start server.js --name vulnshop-backend --force --user www-data --group www-data
 
 # Step 8: Save PM2 process list
 echo -e "${GREEN}Step 7: Saving PM2 process list...${NC}"
