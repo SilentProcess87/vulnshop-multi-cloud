@@ -1,0 +1,273 @@
+<policies>
+    <inbound>
+        <!-- OWASP Top 10 Protection Policy -->
+        
+        <!-- A03:2021 – Injection Protection -->
+        <!-- SQL Injection Protection -->
+        <validate-content unspecified-content-type-action="prevent" max-size="102400" size-exceeded-action="prevent">
+            <content type="application/json">
+                <validation-errors>
+                    <error variable-name="body">
+                        @{
+                            string body = context.Request.Body?.As<string>(preserveContent: true) ?? "";
+                            // Check for SQL injection patterns
+                            string[] sqlPatterns = new string[] {
+                                @"(\b(ALTER|CREATE|DELETE|DROP|EXEC(UTE)?|INSERT( +INTO)?|MERGE|SELECT|UPDATE|UNION( +ALL)?)\b)",
+                                @"(--[^\r\n]*|/\*[\w\W]*?(?=\*/)\*/)",
+                                @"(\b(AND|OR)\b\s+[\w\s]+\s*=\s*[\w\s]+)",
+                                @"('|""|`|´|'|'|"|")",
+                                @"(xp_cmdshell|sp_executesql|execute\s+immediate|dbms_)",
+                                @"(script\s*:)",
+                                @"(<\s*script|javascript\s*:|onerror\s*=|onload\s*=|onclick\s*=|<\s*iframe|<\s*object|<\s*embed)"
+                            };
+                            
+                            foreach (string pattern in sqlPatterns) {
+                                if (System.Text.RegularExpressions.Regex.IsMatch(body, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) {
+                                    return "Potential injection attack detected";
+                                }
+                            }
+                            
+                            // Check query parameters
+                            var queryParams = context.Request.Url.Query;
+                            foreach (var param in queryParams) {
+                                foreach (string pattern in sqlPatterns) {
+                                    if (System.Text.RegularExpressions.Regex.IsMatch(param.Value, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) {
+                                        return "Potential injection attack detected in query parameters";
+                                    }
+                                }
+                            }
+                            
+                            return null;
+                        }
+                    </error>
+                </validation-errors>
+            </content>
+        </validate-content>
+        
+        <!-- A01:2021 – Broken Access Control -->
+        <!-- Authentication validation for protected endpoints -->
+        <choose>
+            <when condition="@(!context.Request.Url.Path.Contains("/public/") && !context.Request.Url.Path.Contains("/health"))">
+                <validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized">
+                    <openid-config url="https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration" />
+                    <audiences>
+                        <audience>your-api-audience</audience>
+                    </audiences>
+                    <issuers>
+                        <issuer>https://sts.windows.net/your-tenant-id/</issuer>
+                    </issuers>
+                </validate-jwt>
+            </when>
+        </choose>
+        
+        <!-- A02:2021 – Cryptographic Failures -->
+        <!-- Enforce HTTPS -->
+        <choose>
+            <when condition="@(context.Request.OriginalUrl.Scheme != "https")">
+                <return-response>
+                    <set-status code="403" reason="HTTPS Required" />
+                    <set-body>HTTPS is required for all API calls</set-body>
+                </return-response>
+            </when>
+        </choose>
+        
+        <!-- A04:2021 – Insecure Design -->
+        <!-- Rate limiting to prevent abuse -->
+        <rate-limit-by-key calls="100" renewal-period="60" counter-key="@(context.Request.IpAddress)" />
+        
+        <!-- A05:2021 – Security Misconfiguration -->
+        <!-- Remove sensitive headers -->
+        <set-header name="X-Powered-By" exists-action="delete" />
+        <set-header name="Server" exists-action="delete" />
+        <set-header name="X-AspNet-Version" exists-action="delete" />
+        
+        <!-- A06:2021 – Vulnerable and Outdated Components -->
+        <!-- Log API version for monitoring -->
+        <set-variable name="api-version" value="@(context.Request.Headers.GetValueOrDefault("API-Version", "1.0"))" />
+        
+        <!-- A07:2021 – Identification and Authentication Failures -->
+        <!-- Implement account lockout for failed authentication attempts -->
+        <cache-lookup-value key="@("failed-auth-" + context.Request.IpAddress)" variable-name="failedAttempts" />
+        <choose>
+            <when condition="@(context.Variables.GetValueOrDefault<int>("failedAttempts", 0) > 5)">
+                <return-response>
+                    <set-status code="429" reason="Too Many Failed Authentication Attempts" />
+                    <set-body>Account temporarily locked due to multiple failed authentication attempts</set-body>
+                </return-response>
+            </when>
+        </choose>
+        
+        <!-- A08:2021 – Software and Data Integrity Failures -->
+        <!-- Validate content integrity -->
+        <set-variable name="content-hash" value="@(context.Request.Headers.GetValueOrDefault("X-Content-Hash", ""))" />
+        
+        <!-- A09:2021 – Security Logging and Monitoring Failures -->
+        <!-- Log security events -->
+        <log-to-eventhub logger-id="security-logger" partition-id="0">
+            @{
+                return new JObject(
+                    new JProperty("EventTime", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")),
+                    new JProperty("ServiceName", context.Deployment.ServiceName),
+                    new JProperty("RequestId", context.RequestId),
+                    new JProperty("RequestIp", context.Request.IpAddress),
+                    new JProperty("OperationName", context.Operation.Name),
+                    new JProperty("RequestPath", context.Request.Url.Path),
+                    new JProperty("RequestMethod", context.Request.Method),
+                    new JProperty("UserAgent", context.Request.Headers.GetValueOrDefault("User-Agent", "")),
+                    new JProperty("AuthHeader", context.Request.Headers.ContainsKey("Authorization") ? "Present" : "Missing")
+                ).ToString();
+            }
+        </log-to-eventhub>
+        
+        <!-- A10:2021 – Server-Side Request Forgery (SSRF) -->
+        <!-- Validate and sanitize URLs in request -->
+        <set-variable name="requestBody" value="@(context.Request.Body?.As<string>(preserveContent: true) ?? "")" />
+        <choose>
+            <when condition="@(context.Variables.GetValueOrDefault<string>("requestBody", "").Contains("http://") || context.Variables.GetValueOrDefault<string>("requestBody", "").Contains("https://") || context.Variables.GetValueOrDefault<string>("requestBody", "").Contains("file://"))">
+                <validate-content unspecified-content-type-action="prevent">
+                    <content type="application/json">
+                        <validation-errors>
+                            <error variable-name="body">
+                                @{
+                                    string body = context.Request.Body?.As<string>(preserveContent: true) ?? "";
+                                    // Block internal/private IP ranges
+                                    string[] blockedPatterns = new string[] {
+                                        @"(10\.\d{1,3}\.\d{1,3}\.\d{1,3})",
+                                        @"(172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3})",
+                                        @"(192\.168\.\d{1,3}\.\d{1,3})",
+                                        @"(127\.\d{1,3}\.\d{1,3}\.\d{1,3})",
+                                        @"(localhost)",
+                                        @"(file://)",
+                                        @"(gopher://)",
+                                        @"(dict://)",
+                                        @"(ftp://)",
+                                        @"(ldap://)"
+                                    };
+                                    
+                                    foreach (string pattern in blockedPatterns) {
+                                        if (System.Text.RegularExpressions.Regex.IsMatch(body, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) {
+                                            return "Potential SSRF attack detected";
+                                        }
+                                    }
+                                    return null;
+                                }
+                            </error>
+                        </validation-errors>
+                    </content>
+                </validate-content>
+            </when>
+        </choose>
+        
+        <!-- XSS Protection Headers -->
+        <set-header name="X-XSS-Protection" exists-action="override">
+            <value>1; mode=block</value>
+        </set-header>
+        <set-header name="X-Content-Type-Options" exists-action="override">
+            <value>nosniff</value>
+        </set-header>
+        <set-header name="X-Frame-Options" exists-action="override">
+            <value>DENY</value>
+        </set-header>
+        <set-header name="Content-Security-Policy" exists-action="override">
+            <value>default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';</value>
+        </set-header>
+        
+        <!-- CORS Configuration (restrictive) -->
+        <cors allow-credentials="true">
+            <allowed-origins>
+                <origin>https://vulnshop.azurewebsites.net</origin>
+                <origin>https://localhost:3000</origin>
+            </allowed-origins>
+            <allowed-methods>
+                <method>GET</method>
+                <method>POST</method>
+                <method>PUT</method>
+                <method>DELETE</method>
+            </allowed-methods>
+            <allowed-headers>
+                <header>Authorization</header>
+                <header>Content-Type</header>
+                <header>X-Requested-With</header>
+            </allowed-headers>
+        </cors>
+    </inbound>
+    
+    <backend>
+        <forward-request />
+    </backend>
+    
+    <outbound>
+        <!-- Remove sensitive information from responses -->
+        <set-header name="X-Powered-By" exists-action="delete" />
+        <set-header name="Server" exists-action="delete" />
+        <set-header name="X-AspNet-Version" exists-action="delete" />
+        <set-header name="X-AspNetMvc-Version" exists-action="delete" />
+        
+        <!-- Add security headers -->
+        <set-header name="Strict-Transport-Security" exists-action="override">
+            <value>max-age=31536000; includeSubDomains</value>
+        </set-header>
+        
+        <!-- Log response for monitoring -->
+        <log-to-eventhub logger-id="security-logger" partition-id="1">
+            @{
+                return new JObject(
+                    new JProperty("EventTime", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")),
+                    new JProperty("RequestId", context.RequestId),
+                    new JProperty("ResponseCode", context.Response.StatusCode),
+                    new JProperty("ResponseReason", context.Response.StatusReason),
+                    new JProperty("Duration", context.Elapsed.TotalMilliseconds)
+                ).ToString();
+            }
+        </log-to-eventhub>
+    </outbound>
+    
+    <on-error>
+        <!-- Sanitize error responses -->
+        <set-body>@{
+            var statusCode = context.Response.StatusCode;
+            var message = "An error occurred processing your request";
+            
+            switch(statusCode) {
+                case 400:
+                    message = "Bad Request";
+                    break;
+                case 401:
+                    message = "Unauthorized";
+                    break;
+                case 403:
+                    message = "Forbidden";
+                    break;
+                case 404:
+                    message = "Not Found";
+                    break;
+                case 429:
+                    message = "Too Many Requests";
+                    break;
+                case 500:
+                    message = "Internal Server Error";
+                    break;
+            }
+            
+            return new JObject(
+                new JProperty("error", message),
+                new JProperty("requestId", context.RequestId),
+                new JProperty("timestamp", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"))
+            ).ToString();
+        }</set-body>
+        
+        <!-- Log errors -->
+        <log-to-eventhub logger-id="security-logger" partition-id="2">
+            @{
+                return new JObject(
+                    new JProperty("EventTime", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")),
+                    new JProperty("RequestId", context.RequestId),
+                    new JProperty("Error", context.LastError.Message),
+                    new JProperty("Source", context.LastError.Source),
+                    new JProperty("Reason", context.LastError.Reason),
+                    new JProperty("RequestPath", context.Request.Url.Path)
+                ).ToString();
+            }
+        </log-to-eventhub>
+    </on-error>
+</policies> 

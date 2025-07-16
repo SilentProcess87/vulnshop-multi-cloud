@@ -525,6 +525,281 @@ app.use((err, req, res, next) => {
   });
 });
 
+// NEW: Public APIs without authentication that expose sensitive data
+
+// VULNERABILITY: Exposed user data endpoint without authentication
+app.get('/api/public/users', async (req, res) => {
+  try {
+    const users = await db.all(`
+      SELECT id, username, email, role, created_at 
+      FROM users 
+      ORDER BY created_at DESC
+    `);
+    res.json({
+      message: 'Public user listing - no authentication required',
+      count: users.length,
+      users: users
+    });
+  } catch (error) {
+    console.error('Public users fetch error:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch users',
+      details: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// VULNERABILITY: Exposed system information
+app.get('/api/public/system-info', (req, res) => {
+  res.json({
+    message: 'System information endpoint - publicly accessible',
+    system: {
+      node_version: process.version,
+      platform: process.platform,
+      memory: process.memoryUsage(),
+      uptime: process.uptime(),
+      env: process.env, // CRITICAL: Exposes all environment variables
+      cwd: process.cwd(),
+      pid: process.pid
+    }
+  });
+});
+
+// VULNERABILITY: Database schema exposure
+app.get('/api/public/db-schema', async (req, res) => {
+  try {
+    const schema = await db.all("SELECT sql FROM sqlite_master WHERE type='table'");
+    res.json({
+      message: 'Database schema - publicly accessible',
+      tables: schema
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Failed to fetch schema',
+      details: error.message 
+    });
+  }
+});
+
+// VULNERABILITY: User search without authentication (with SQL injection)
+app.get('/api/public/user-search', async (req, res) => {
+  try {
+    const { username, email } = req.query;
+    let query = 'SELECT * FROM users WHERE 1=1';
+    
+    if (username) {
+      query += ` AND username LIKE '%${username}%'`; // SQL Injection vulnerability
+    }
+    if (email) {
+      query += ` AND email LIKE '%${email}%'`; // SQL Injection vulnerability
+    }
+    
+    const users = await db.all(query);
+    res.json({
+      message: 'User search - no authentication required',
+      query: query,
+      results: users
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Search failed',
+      details: error.message,
+      query: req.query
+    });
+  }
+});
+
+// VULNERABILITY: Order details exposure without proper authentication
+app.get('/api/public/recent-orders', async (req, res) => {
+  try {
+    const orders = await db.all(`
+      SELECT o.*, u.username, u.email,
+        GROUP_CONCAT(p.name || ' (x' || oi.quantity || ')') as items
+      FROM orders o
+      JOIN users u ON o.user_id = u.id
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      LEFT JOIN products p ON oi.product_id = p.id
+      GROUP BY o.id
+      ORDER BY o.created_at DESC
+      LIMIT 50
+    `);
+
+    res.json({
+      message: 'Recent orders - publicly accessible',
+      count: orders.length,
+      orders: orders
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Failed to fetch orders',
+      details: error.message 
+    });
+  }
+});
+
+// VULNERABILITY: Config endpoint exposing sensitive configuration
+app.get('/api/public/config', (req, res) => {
+  res.json({
+    message: 'Application configuration - publicly accessible',
+    config: {
+      jwt_secret: JWT_SECRET, // CRITICAL: Exposes JWT secret
+      database_path: path.join(process.cwd(), 'vulnshop.db'),
+      cors_origin: '*',
+      rate_limit: 'disabled',
+      authentication: {
+        enabled: true,
+        type: 'JWT',
+        expiry: '24h'
+      },
+      features: {
+        registration_open: true,
+        allow_admin_creation: true,
+        debug_mode: true
+      }
+    }
+  });
+});
+
+// VULNERABILITY: Debug endpoint with sensitive information
+app.get('/api/public/debug', async (req, res) => {
+  try {
+    const userCount = await db.get('SELECT COUNT(*) as count FROM users');
+    const productCount = await db.get('SELECT COUNT(*) as count FROM products');
+    const orderCount = await db.get('SELECT COUNT(*) as count FROM orders');
+    
+    res.json({
+      message: 'Debug information - publicly accessible',
+      stats: {
+        users: userCount.count,
+        products: productCount.count,
+        orders: orderCount.count
+      },
+      routes: app._router.stack
+        .filter(r => r.route)
+        .map(r => ({
+          path: r.route.path,
+          methods: Object.keys(r.route.methods)
+        })),
+      middleware: app._router.stack
+        .filter(r => r.name)
+        .map(r => r.name)
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Debug info failed',
+      details: error.message 
+    });
+  }
+});
+
+// VULNERABILITY: File read endpoint (path traversal vulnerability)
+app.get('/api/public/files', (req, res) => {
+  const { path: filePath } = req.query;
+  
+  if (!filePath) {
+    return res.status(400).json({ error: 'Path parameter required' });
+  }
+  
+  try {
+    // VULNERABILITY: No path sanitization
+    const fs = require('fs');
+    const content = fs.readFileSync(filePath, 'utf8');
+    res.json({
+      message: 'File content - publicly accessible',
+      path: filePath,
+      content: content
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'File read failed',
+      details: error.message,
+      path: filePath
+    });
+  }
+});
+
+// NEW: Additional authenticated endpoints with sensitive data
+
+// Get all user sessions (admin only but weak check)
+app.get('/api/admin/sessions', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    // In a real app, this would track active sessions
+    const users = await db.all('SELECT * FROM users');
+    const sessions = users.map(user => ({
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      lastActive: new Date().toISOString(),
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent']
+    }));
+    
+    res.json({
+      message: 'Active user sessions',
+      count: sessions.length,
+      sessions: sessions
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Failed to fetch sessions',
+      details: error.message 
+    });
+  }
+});
+
+// Export user data (GDPR endpoint but insecure)
+app.get('/api/users/:id/export', authenticateToken, async (req, res) => {
+  try {
+    // VULNERABILITY: No check if user can access this data
+    const userId = req.params.id;
+    
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
+    const orders = await db.all('SELECT * FROM orders WHERE user_id = ?', [userId]);
+    const reviews = await db.all('SELECT * FROM reviews WHERE user_id = ?', [userId]);
+    
+    res.json({
+      message: 'User data export',
+      user: user,
+      orders: orders,
+      reviews: reviews,
+      export_date: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Export failed',
+      details: error.message 
+    });
+  }
+});
+
+// Analytics endpoint with business intelligence data
+app.get('/api/analytics/revenue', authenticateToken, async (req, res) => {
+  try {
+    const revenue = await db.get('SELECT SUM(total) as total FROM orders');
+    const topProducts = await db.all(`
+      SELECT p.name, p.price, COUNT(oi.id) as sold, SUM(oi.quantity * oi.price) as revenue
+      FROM products p
+      JOIN order_items oi ON p.id = oi.product_id
+      GROUP BY p.id
+      ORDER BY revenue DESC
+      LIMIT 10
+    `);
+    
+    res.json({
+      message: 'Revenue analytics',
+      total_revenue: revenue.total,
+      top_products: topProducts,
+      period: 'all-time'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Analytics failed',
+      details: error.message 
+    });
+  }
+});
+
 // Start server
 async function startServer() {
   try {
@@ -547,12 +822,104 @@ async function startServer() {
       console.log('10. XSS in review system');
       console.log('11. Large payload acceptance');
       console.log('12. Privilege escalation through weak role validation');
-      console.log('=====================================\n');
-    });
+      console.log('\n=== NEW PUBLIC ENDPOINTS (NO AUTH) ===');
+      console.log('- /api/public/users - Exposes all user data');
+      console.log('- /api/public/system-info - Exposes system information');
+      console.log('- /api/public/db-schema - Exposes database schema');
+      console.log('- /api/public/user-search - User search with SQL injection');
+      console.log('- /api/public/recent-orders - Exposes order details');
+      console.log('- /api/public/config - Exposes sensitive configuration');
+      console.log('- /api/public/debug - Debug information');
+              console.log('- /api/public/files - File read with path traversal');
+        console.log('=====================================\n');
+      });
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
+}
+
+// API Discovery endpoint - makes all endpoints discoverable
+app.get('/api/discovery', (req, res) => {
+  const endpoints = [];
+  
+  // Extract all routes from Express
+  app._router.stack.forEach(middleware => {
+    if (middleware.route) {
+      const methods = Object.keys(middleware.route.methods);
+      endpoints.push({
+        path: middleware.route.path,
+        methods: methods,
+        auth_required: middleware.route.path.includes('/public/') ? false : true,
+        description: getEndpointDescription(middleware.route.path)
+      });
+    }
+  });
+  
+  res.json({
+    service: 'VulnShop API',
+    version: '2.0.0',
+    description: 'E-commerce API with intentional vulnerabilities for security testing',
+    documentation: '/api/swagger',
+    endpoints: endpoints,
+    vulnerabilities: {
+      'SQL Injection': ['/api/products/search', '/api/public/user-search'],
+      'XSS': ['/api/products/:id/reviews'],
+      'IDOR': ['/api/orders/:id', '/api/users/:id/export'],
+      'Information Disclosure': ['/api/public/users', '/api/public/system-info', '/api/public/config'],
+      'Path Traversal': ['/api/public/files'],
+      'Mass Assignment': ['/api/register'],
+      'No Authentication': ['/api/public/*']
+    },
+    security_features: {
+      'OWASP Top 10 Protection': 'Available via Azure APIM policies',
+      'Rate Limiting': 'Configurable in APIM',
+      'JWT Authentication': 'Required for protected endpoints',
+      'CORS': 'Configured but permissive'
+    }
+  });
+});
+
+// Swagger/OpenAPI endpoint
+app.get('/api/swagger', (req, res) => {
+  const fs = require('fs');
+  const swaggerPath = path.join(process.cwd(), 'apim-swagger.json');
+  
+  try {
+    const swaggerDoc = JSON.parse(fs.readFileSync(swaggerPath, 'utf8'));
+    res.json(swaggerDoc);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to load API documentation' });
+  }
+});
+
+function getEndpointDescription(path) {
+  const descriptions = {
+    '/api/public/users': 'Lists all users with sensitive data - NO AUTHENTICATION',
+    '/api/public/system-info': 'Exposes system information including environment variables',
+    '/api/public/db-schema': 'Returns complete database schema',
+    '/api/public/user-search': 'Search users with SQL injection vulnerability',
+    '/api/public/recent-orders': 'Shows recent orders with user information',
+    '/api/public/config': 'Exposes application configuration including JWT secret',
+    '/api/public/debug': 'Debug information including routes and middleware',
+    '/api/public/files': 'File reader with path traversal vulnerability',
+    '/api/products': 'Product catalog',
+    '/api/products/search': 'Product search with SQL injection vulnerability',
+    '/api/login': 'User authentication',
+    '/api/register': 'User registration with mass assignment vulnerability',
+    '/api/orders': 'Order management',
+    '/api/orders/:id': 'Get specific order - IDOR vulnerability',
+    '/api/users/:id/export': 'Export user data - broken access control',
+    '/api/admin/users': 'Admin user management',
+    '/api/admin/orders': 'Admin order management',
+    '/api/admin/sessions': 'View active user sessions',
+    '/api/analytics/revenue': 'Business intelligence data',
+    '/api/discovery': 'API discovery endpoint',
+    '/api/swagger': 'OpenAPI documentation',
+    '/api/health': 'Health check endpoint'
+  };
+  
+  return descriptions[path] || 'API endpoint';
 }
 
 startServer(); 

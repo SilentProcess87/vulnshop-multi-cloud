@@ -2,17 +2,210 @@
   "openapi": "3.0.0",
   "info": {
     "title": "VulnShop API",
-    "description": "Vulnerable E-commerce API for security testing",
-    "version": "1.0.0"
+    "description": "Vulnerable E-commerce API for security testing with exposed endpoints containing sensitive data",
+    "version": "2.0.0",
+    "contact": {
+      "name": "VulnShop Support",
+      "email": "support@vulnshop.com"
+    }
   },
   "servers": [
     {
-      "url": "http://vulnshop-dev-t7up5q.eastus.cloudapp.azure.com"
+      "url": "http://vulnshop-dev-t7up5q.eastus.cloudapp.azure.com",
+      "description": "Production server (publicly accessible)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Public",
+      "description": "No authentication required - exposed endpoints"
+    },
+    {
+      "name": "Authentication",
+      "description": "Login and registration endpoints"
+    },
+    {
+      "name": "Products",
+      "description": "Product catalog operations"
+    },
+    {
+      "name": "Orders",
+      "description": "Order management"
+    },
+    {
+      "name": "Admin",
+      "description": "Administrative operations"
+    },
+    {
+      "name": "Analytics",
+      "description": "Business intelligence endpoints"
     }
   ],
   "paths": {
+    "/api/public/users": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Get all users without authentication",
+        "description": "EXPOSED: Returns all user data including emails and roles",
+        "operationId": "getPublicUsers",
+        "responses": {
+          "200": {
+            "description": "List of all users with sensitive data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer"
+                    },
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/UserWithPassword"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/system-info": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Get system information",
+        "description": "EXPOSED: Returns sensitive system information including environment variables",
+        "operationId": "getSystemInfo",
+        "responses": {
+          "200": {
+            "description": "System information including secrets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/db-schema": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Get database schema",
+        "description": "EXPOSED: Returns complete database schema",
+        "operationId": "getDbSchema",
+        "responses": {
+          "200": {
+            "description": "Database schema information"
+          }
+        }
+      }
+    },
+    "/api/public/user-search": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Search users without authentication",
+        "description": "VULNERABLE: SQL injection possible via username/email parameters",
+        "operationId": "searchPublicUsers",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "query",
+            "description": "Username to search (SQL injection vulnerable)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "email",
+            "in": "query",
+            "description": "Email to search (SQL injection vulnerable)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results with user data"
+          }
+        }
+      }
+    },
+    "/api/public/recent-orders": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Get recent orders without authentication",
+        "description": "EXPOSED: Returns order details including user information",
+        "operationId": "getPublicRecentOrders",
+        "responses": {
+          "200": {
+            "description": "Recent orders with user details"
+          }
+        }
+      }
+    },
+    "/api/public/config": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Get application configuration",
+        "description": "CRITICAL: Exposes JWT secret and other sensitive configuration",
+        "operationId": "getPublicConfig",
+        "responses": {
+          "200": {
+            "description": "Application configuration including secrets"
+          }
+        }
+      }
+    },
+    "/api/public/debug": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Get debug information",
+        "description": "EXPOSED: Returns debug information including routes and middleware",
+        "operationId": "getDebugInfo",
+        "responses": {
+          "200": {
+            "description": "Debug information"
+          }
+        }
+      }
+    },
+    "/api/public/files": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Read files from server",
+        "description": "CRITICAL: Path traversal vulnerability - can read any file",
+        "operationId": "readPublicFiles",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "description": "File path to read (vulnerable to path traversal)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File content"
+          }
+        }
+      }
+    },
     "/api/products": {
       "get": {
+        "tags": ["Products"],
         "summary": "Get all products",
         "operationId": "getProducts",
         "parameters": [
@@ -41,10 +234,61 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": ["Products"],
+        "summary": "Create new product",
+        "description": "Requires authentication but no admin check",
+        "operationId": "createProduct",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product created"
+          }
+        }
+      }
+    },
+    "/api/products/search": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Search products",
+        "description": "VULNERABLE: SQL injection in search query",
+        "operationId": "searchProducts",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Search query (SQL injection vulnerable)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results"
+          }
+        }
       }
     },
     "/api/products/{id}": {
       "get": {
+        "tags": ["Products"],
         "summary": "Get product by ID",
         "operationId": "getProductById",
         "parameters": [
@@ -59,11 +303,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Product details",
+            "description": "Product details with reviews",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Product"
+                  "$ref": "#/components/schemas/ProductWithReviews"
                 }
               }
             }
@@ -71,8 +315,47 @@
         }
       }
     },
+    "/api/products/{id}/reviews": {
+      "post": {
+        "tags": ["Products"],
+        "summary": "Create product review",
+        "description": "VULNERABLE: XSS in review comments",
+        "operationId": "createReview",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Review created"
+          }
+        }
+      }
+    },
     "/api/login": {
       "post": {
+        "tags": ["Authentication"],
         "summary": "User login",
         "operationId": "login",
         "requestBody": {
@@ -118,7 +401,9 @@
     },
     "/api/register": {
       "post": {
+        "tags": ["Authentication"],
         "summary": "User registration",
+        "description": "VULNERABLE: Mass assignment allows setting admin role",
         "operationId": "register",
         "requestBody": {
           "required": true,
@@ -137,6 +422,10 @@
                   "email": {
                     "type": "string",
                     "format": "email"
+                  },
+                  "role": {
+                    "type": "string",
+                    "description": "Can be exploited to set admin role"
                   }
                 }
               }
@@ -150,57 +439,9 @@
         }
       }
     },
-    "/api/cart": {
-      "get": {
-        "summary": "Get user's cart",
-        "operationId": "getCart",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Cart contents"
-          }
-        }
-      },
-      "post": {
-        "summary": "Add item to cart",
-        "operationId": "addToCart",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["productId", "quantity"],
-                "properties": {
-                  "productId": {
-                    "type": "integer"
-                  },
-                  "quantity": {
-                    "type": "integer"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Item added to cart"
-          }
-        }
-      }
-    },
     "/api/orders": {
       "get": {
+        "tags": ["Orders"],
         "summary": "Get user's orders",
         "operationId": "getOrders",
         "security": [
@@ -215,6 +456,7 @@
         }
       },
       "post": {
+        "tags": ["Orders"],
         "summary": "Create order",
         "operationId": "createOrder",
         "security": [
@@ -222,6 +464,16 @@
             "bearerAuth": []
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderInput"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "Order created"
@@ -231,7 +483,9 @@
     },
     "/api/orders/{id}": {
       "get": {
+        "tags": ["Orders"],
         "summary": "Get order by ID",
+        "description": "VULNERABLE: IDOR - no ownership check",
         "operationId": "getOrderById",
         "security": [
           {
@@ -255,53 +509,152 @@
         }
       }
     },
-    "/api/reviews": {
-      "post": {
-        "summary": "Create product review",
-        "operationId": "createReview",
+    "/api/users/{id}/export": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Export user data",
+        "description": "VULNERABLE: No authorization check - can export any user's data",
+        "operationId": "exportUserData",
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["productId", "rating", "comment"],
-                "properties": {
-                  "productId": {
-                    "type": "integer"
-                  },
-                  "rating": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 5
-                  },
-                  "comment": {
-                    "type": "string"
-                  }
-                }
-              }
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
             }
           }
-        },
+        ],
         "responses": {
-          "201": {
-            "description": "Review created"
+          "200": {
+            "description": "User data export"
+          }
+        }
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get all users (admin)",
+        "operationId": "getAdminUsers",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of all users"
+          }
+        }
+      }
+    },
+    "/api/admin/orders": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get all orders (admin)",
+        "operationId": "getAdminOrders",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of all orders"
+          }
+        }
+      }
+    },
+    "/api/admin/sessions": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get active user sessions",
+        "description": "Returns sensitive session information",
+        "operationId": "getAdminSessions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active user sessions"
+          }
+        }
+      }
+    },
+    "/api/analytics/revenue": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Get revenue analytics",
+        "description": "Business intelligence data",
+        "operationId": "getRevenueAnalytics",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revenue analytics data"
           }
         }
       }
     },
     "/api/health": {
       "get": {
+        "tags": ["Public"],
         "summary": "Health check",
         "operationId": "healthCheck",
         "responses": {
           "200": {
             "description": "Service is healthy"
+          }
+        }
+      }
+    },
+    "/api/discovery": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "API Discovery",
+        "description": "Discover all available API endpoints, vulnerabilities, and security features",
+        "operationId": "apiDiscovery",
+        "responses": {
+          "200": {
+            "description": "Complete API discovery information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiDiscovery"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/swagger": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "OpenAPI Documentation",
+        "description": "Returns the complete OpenAPI/Swagger documentation",
+        "operationId": "getSwagger",
+        "responses": {
+          "200": {
+            "description": "OpenAPI documentation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           }
         }
       }
@@ -327,8 +680,98 @@
           "image": {
             "type": "string"
           },
-          "stock": {
+          "category": {
+            "type": "string"
+          },
+          "created_by": {
             "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProductInput": {
+        "type": "object",
+        "required": ["name", "description", "price", "image", "category"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "image": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          }
+        }
+      },
+      "ProductWithReviews": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Product"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "reviews": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Review": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "product_id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "comment": {
+            "type": "string",
+            "description": "User input not sanitized - XSS vulnerable"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ReviewInput": {
+        "type": "object",
+        "required": ["rating", "comment"],
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "comment": {
+            "type": "string"
           }
         }
       },
@@ -344,8 +787,140 @@
           "email": {
             "type": "string"
           },
-          "isAdmin": {
-            "type": "boolean"
+          "role": {
+            "type": "string",
+            "enum": ["user", "admin"]
+          }
+        }
+      },
+      "UserWithPassword": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/User"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "password": {
+                "type": "string",
+                "description": "Hashed password"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        ]
+      },
+      "OrderInput": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["productId", "quantity"],
+              "properties": {
+                "productId": {
+                  "type": "integer"
+                },
+                "quantity": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "SystemInfo": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "system": {
+            "type": "object",
+            "properties": {
+              "node_version": {
+                "type": "string"
+              },
+              "platform": {
+                "type": "string"
+              },
+              "memory": {
+                "type": "object"
+              },
+              "uptime": {
+                "type": "number"
+              },
+              "env": {
+                "type": "object",
+                "description": "All environment variables including secrets"
+              },
+              "cwd": {
+                "type": "string"
+              },
+              "pid": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "ApiDiscovery": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "documentation": {
+            "type": "string"
+          },
+          "endpoints": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "methods": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "auth_required": {
+                  "type": "boolean"
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "vulnerabilities": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "security_features": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         }
       }
