@@ -87,15 +87,15 @@ fi
 
 # Discover APIM instance dynamically
 echo "Discovering Azure APIM instance..."
-APIM_DETAILS=$(az apim list --query "[?contains(name, 'vulnshop-apim')].[name,resourceGroup]" -o tsv)
+APIM_DETAILS=$(az apim list --query "[?contains(name, 'apim-vulnshop')].[name,resourceGroup]" -o tsv)
 
 if [ -z "$APIM_DETAILS" ]; then
-    echo -e "${RED}ERROR: Could not find any APIM service containing 'vulnshop-apim'. Please check the name and your Azure subscription.${NC}"
+    echo -e "${RED}ERROR: Could not find any APIM service containing 'apim-vulnshop'. Please check the name and your Azure subscription.${NC}"
     exit 1
 fi
 
 if [ $(echo "$APIM_DETAILS" | wc -l) -gt 1 ]; then
-    echo -e "${YELLOW}WARNING: Found multiple APIM services containing 'vulnshop-apim'. Using the first one.${NC}"
+    echo -e "${YELLOW}WARNING: Found multiple APIM services containing 'apim-vulnshop'. Using the first one.${NC}"
     APIM_DETAILS=$(echo "$APIM_DETAILS" | head -n 1)
 fi
 
