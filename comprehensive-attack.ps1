@@ -52,7 +52,7 @@ Run-Test "Fetch Database Schema (Sensitive Data Exposure)" `
 Run-Test "Fetch Recent Orders (Sensitive Data Exposure)" `
     "(Invoke-RestMethod -Uri '$ApiBaseUrl/api/public/recent-orders' -Method Get).orders[0]"
 
-Run_Test "Fetch App Configuration (Exposing JWT Secret)" `
+Run-Test "Fetch App Configuration (Exposing JWT Secret)" `
     "Invoke-RestMethod -Uri '$ApiBaseUrl/api/public/config' -Method Get"
 
 Run-Test "Fetch Debug Information" `
