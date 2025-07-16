@@ -7,9 +7,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Faker, en } from '@faker-js/faker';
+import fs from 'fs';
 
-const faker = new Faker({ locale: [en] });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -118,44 +117,11 @@ async function initializeData() {
       return;
     }
 
-    // Create admin user
-    const adminPassword = await bcrypt.hash('admin123', 10);
-    await db.run(
-      'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
-      ['admin', 'admin@vulnshop.com', adminPassword, 'admin']
-    );
+    // Read and execute the seed SQL file
+    const seedSql = fs.readFileSync(path.join(__dirname, 'seed.sql')).toString();
+    await db.exec(seedSql);
 
-    // Create 1000 fake users
-    for (let i = 0; i < 1000; i++) {
-      try {
-        const username = faker.internet.username();
-        const email = faker.internet.email();
-        const password = await bcrypt.hash('password123', 10);
-        await db.run(
-          'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
-          [username, email, password, 'user']
-        );
-      } catch (error) {
-        if (error.code !== 'SQLITE_CONSTRAINT') {
-          console.error('Error creating fake user:', error);
-        }
-      }
-    }
-
-    // Create 50 fake products
-    for (let i = 0; i < 50; i++) {
-      const name = faker.commerce.productName();
-      const description = faker.commerce.productDescription();
-      const price = faker.commerce.price();
-      const image = faker.image.url();
-      const category = faker.commerce.department();
-      await db.run(
-        'INSERT INTO products (name, description, price, image, category, created_by) VALUES (?, ?, ?, ?, ?, ?)',
-        [name, description, price, image, category, 1] // created by admin
-      );
-    }
-
-    console.log('Sample data created successfully');
+    console.log('Database seeded successfully from seed.sql');
   } catch (error) {
     console.error('Error initializing data:', error);
   }

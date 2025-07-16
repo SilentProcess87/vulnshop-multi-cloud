@@ -1,7 +1,7 @@
 {
   "name": "vulnshop-backend",
   "version": "1.0.0",
-  "description": "Vulnerable e-commerce backend for educational purposes",
+  "description": "Vulnerable e-commerce backend for security testing",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -9,17 +9,16 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
-    "@faker-js/faker": "^9.9.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.0.3",
     "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.2",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.6"
+    "jsonwebtoken": "^9.0.0",
+    "sqlite": "^4.1.2",
+    "sqlite3": "^5.1.4"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^2.0.20"
   },
   "keywords": [
     "vulnerable",
