@@ -127,7 +127,7 @@ async function initializeData() {
 
     // Create 1000 fake users
     for (let i = 0; i < 1000; i++) {
-      const username = faker.internet.userName();
+      const username = faker.internet.username();
       const email = faker.internet.email();
       const password = await bcrypt.hash('password123', 10);
       await db.run(
