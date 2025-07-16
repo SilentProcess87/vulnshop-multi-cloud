@@ -82,8 +82,8 @@ if ! [ -x "$(command -v az)" ]; then
 fi
 
 # Azure login - this will require interactive login
-echo -e "${YELLOW}Please log in to Azure...${NC}"
-az login
+# echo -e "${YELLOW}Please log in to Azure...${NC}"
+# az login
 
 # Configuration - replace with your actual values or use environment variables
 RESOURCE_GROUP="vulnshop-rg"
@@ -99,7 +99,8 @@ az apim api import --path /var/www/vulnshop/apim-swagger.json \
     --api-id $API_ID \
     --display-name "$API_DISPLAY_NAME" \
     --service-url $BACKEND_URL \
-    --subscription-required false
+    --subscription-required false \
+    --specification-format Swagger
 
 echo "Applying OWASP Top 10 policy..."
 az apim api policy import --path /var/www/vulnshop/policies/owasp-top10-protection.xml \
