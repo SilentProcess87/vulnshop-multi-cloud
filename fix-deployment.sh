@@ -42,11 +42,29 @@ sudo lsof -ti:3001 | xargs sudo kill -9 2>/dev/null || true
 # Step 4: Clean install backend
 echo -e "${GREEN}Step 3: Reinstalling backend...${NC}"
 cd backend
+rm -f ./vulnshop.db
+chmod -R 777 .
 rm -rf node_modules package-lock.json
 npm install --production
 
-# Step 5: Clean install and build frontend3
-pm2 start server.js --name vulnshop-backend
+# Step 5: Clean install and build frontend
+# The user's provided snippet was incomplete. Assuming this is what it should be.
+cd /var/www/vulnshop/frontend
+rm -rf node_modules package-lock.json
+npm install
+npm run build
+
+# Step 6: Restart Nginx
+echo -e "${GREEN}Step 5: Restarting Nginx...${NC}"
+sudo systemctl restart nginx
+
+# Step 7: Start backend with PM2
+echo -e "${GREEN}Step 6: Starting backend with PM2...${NC}"
+cd /var/www/vulnshop/backend
+pm2 start server.js --name vulnshop-backend --force
+
+# Step 8: Save PM2 process list
+echo -e "${GREEN}Step 7: Saving PM2 process list...${NC}"
 cd /var/www/vulnshop
 pm2 save
 
