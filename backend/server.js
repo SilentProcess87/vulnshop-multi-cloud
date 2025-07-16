@@ -7,7 +7,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Faker, en } from '@faker-js/faker';
 
+const faker = new Faker({ locale: [en] });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -110,7 +112,6 @@ async function initializeDatabase() {
 // Initialize sample data
 async function initializeData() {
   try {
-    // Check if data already exists
     const userCount = await db.get('SELECT COUNT(*) as count FROM users');
     if (userCount.count > 0) {
       console.log('Data already exists, skipping initialization');
@@ -124,36 +125,27 @@ async function initializeData() {
       ['admin', 'admin@vulnshop.com', adminPassword, 'admin']
     );
 
-    // Create regular user
-    const userPassword = await bcrypt.hash('user123', 10);
-    await db.run(
-      'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
-      ['testuser', 'user@vulnshop.com', userPassword, 'user']
-    );
+    // Create 1000 fake users
+    for (let i = 0; i < 1000; i++) {
+      const username = faker.internet.userName();
+      const email = faker.internet.email();
+      const password = await bcrypt.hash('password123', 10);
+      await db.run(
+        'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
+        [username, email, password, 'user']
+      );
+    }
 
-    // Create sample products
-    const products = [
-      ['Vulnerable Laptop', 'High-performance laptop with known security vulnerabilities for penetration testing', 999.99, 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&q=80', 'Laptops'],
-      ['Insecure Router', 'Network router with default credentials and open ports', 149.99, 'https://images.unsplash.com/photo-1606904825846-647eb07f5be2?w=500&q=80', 'Networking'],
-      ['Pwned Phone', 'Smartphone with pre-installed vulnerable apps and weak encryption', 599.99, 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500&q=80', 'Phones'],
-      ['Hackable Smartwatch', 'Wearable device with exploitable Bluetooth vulnerabilities', 299.99, 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80', 'Wearables'],
-      ['Leaky Database Server', 'Server hardware optimized for demonstrating SQL injection attacks', 1999.99, 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=500&q=80', 'Servers'],
-      ['Vulnerable Webcam', 'IP camera with hardcoded credentials and no encryption', 89.99, 'https://images.unsplash.com/photo-1567653418876-5bb0e566e1c2?w=500&q=80', 'Security'],
-      ['Exploitable Smart Speaker', 'Voice assistant with weak authentication protocols', 129.99, 'https://images.unsplash.com/photo-1543512214-318c7553f230?w=500&q=80', 'Smart Home'],
-      ['Insecure USB Drive', '32GB USB drive with disabled write protection and autorun enabled', 39.99, 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=500&q=80', 'Storage'],
-      ['Hackable Drone', 'Quadcopter with unencrypted control signals and open telemetry', 899.99, 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=500&q=80', 'Drones'],
-      ['Vulnerable Smart Lock', 'Bluetooth door lock with replay attack vulnerabilities', 199.99, 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&q=80', 'Smart Home'],
-      ['Pwned Tablet', 'Android tablet with outdated OS and pre-rooted system', 349.99, 'https://images.unsplash.com/photo-1561154464-82e9adf32764?w=500&q=80', 'Tablets'],
-      ['Insecure Baby Monitor', 'WiFi baby monitor with default passwords and no SSL', 79.99, 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=500&q=80', 'Security'],
-      ['Exploitable Gaming Console', 'Gaming system with homebrew vulnerabilities enabled', 499.99, 'https://images.unsplash.com/photo-1486401899868-0e435ed85128?w=500&q=80', 'Gaming'],
-      ['Hackable Smart TV', '55-inch TV with exposed debugging ports and weak firmware', 799.99, 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=500&q=80', 'Electronics'],
-      ['Vulnerable Fitness Tracker', 'Activity tracker with unencrypted data transmission', 59.99, 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=500&q=80', 'Wearables']
-    ];
-
-    for (const product of products) {
+    // Create 50 fake products
+    for (let i = 0; i < 50; i++) {
+      const name = faker.commerce.productName();
+      const description = faker.commerce.productDescription();
+      const price = faker.commerce.price();
+      const image = faker.image.url();
+      const category = faker.commerce.department();
       await db.run(
         'INSERT INTO products (name, description, price, image, category, created_by) VALUES (?, ?, ?, ?, ?, ?)',
-        [...product, 1] // created by admin
+        [name, description, price, image, category, 1] // created by admin
       );
     }
 
@@ -530,14 +522,24 @@ app.use((err, req, res, next) => {
 // VULNERABILITY: Exposed user data endpoint without authentication
 app.get('/api/public/users', async (req, res) => {
   try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
     const users = await db.all(`
       SELECT id, username, email, role, created_at 
       FROM users 
       ORDER BY created_at DESC
-    `);
+      LIMIT ? OFFSET ?
+    `, [limit, offset]);
+    
+    const totalUsers = await db.get('SELECT COUNT(*) as count FROM users');
+
     res.json({
-      message: 'Public user listing - no authentication required',
-      count: users.length,
+      message: 'Public user listing - paginated',
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(totalUsers.count / limit),
+      totalUsers: totalUsers.count,
       users: users
     });
   } catch (error) {

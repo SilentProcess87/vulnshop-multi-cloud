@@ -4,6 +4,10 @@
 
 VulnShop is an intentionally vulnerable e-commerce API designed for security testing and demonstration purposes. The API exposes multiple endpoints with various security vulnerabilities while also demonstrating OWASP Top 10 protections through Azure API Management.
 
+**Recent Updates**:
+- The database is now seeded with **1,000 realistic fake users and 50 fake products** using `@faker-js/faker` to provide a more realistic data set for testing.
+- All operational scripts have been unified into a single `manage.sh` script for easier use.
+
 ## API Discovery
 
 The API is fully discoverable through the following endpoints:
@@ -18,10 +22,10 @@ The API is fully discoverable through the following endpoints:
 
 These endpoints are publicly accessible and expose sensitive data:
 
-#### 1. **User Data Exposure**
-- **Endpoint**: `GET /api/public/users`
-- **Description**: Lists all users with sensitive data including emails and roles
-- **Sensitive Data**: User IDs, usernames, emails, roles, creation dates
+#### 1. **Paginated User Data Exposure**
+- **Endpoint**: `GET /api/public/users?page={page_number}&limit={limit}`
+- **Description**: Lists all users with sensitive data, now paginated. This endpoint demonstrates a large-scale data leak.
+- **Sensitive Data**: User IDs, usernames, emails, roles, creation dates for 1,000 fake users.
 - **Vulnerability**: Information disclosure
 
 #### 2. **System Information**
@@ -190,9 +194,31 @@ curl "http://vulnshop-dev-t7up5q.eastus.cloudapp.azure.com/api/products/search?q
 
 ### Path Traversal
 ```bash
-# Read sensitive files
-curl "http://vulnshop-dev-t7up5q.eastus.cloudapp.azure.com/api/public/files?path=../../../etc/passwd"
+# Read sensitive files (example for Linux)
+curl "http://vulnshop-dev-t7up5q.eastus.cloudapp.azure.com/api/public/files?path=../../../../../../../../etc/passwd"
+
+# Read sensitive files (example for Windows)
+curl "http://vulnshop-dev-t7up5q.eastus.cloudapp.azure.com/api/public/files?path=C:\Windows\System32\drivers\etc\hosts"
 ```
+
+## Management and Operations
+
+All operational tasks such as deployment, configuration, and testing have been unified into a single management script: `manage.sh`.
+
+### Usage
+```bash
+./manage.sh {command}
+```
+
+**Available Commands**:
+- `deploy-all`: Deploy both backend and frontend.
+- `deploy-backend`: Deploy only the backend application.
+- `deploy-frontend`: Deploy only the frontend application.
+- `configure-apim`: Configure the Azure API Management instance.
+- `run-tests`: Run the comprehensive, non-destructive attack tests.
+- `check-traffic`: Check traffic on the APIM instance.
+
+For more details, refer to the script itself.
 
 ## Security Recommendations
 
