@@ -93,7 +93,7 @@ runcmd:
   
   # Create a simple status endpoint
   - |
-    cat > /var/www/vulnshop/status.html << 'EOF'
+    cat > /var/www/vulnshop/frontend/dist/status.html << 'EOF'
     <!DOCTYPE html>
     <html>
     <head>

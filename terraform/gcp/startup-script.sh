@@ -82,7 +82,7 @@ systemctl enable nginx
 systemctl start nginx
 
 # Create status page
-cat > /var/www/vulnshop/status.html << 'EOF'
+cat > /var/www/vulnshop/frontend/dist/status.html << 'EOF'
 <!DOCTYPE html>
 <html>
 <head>

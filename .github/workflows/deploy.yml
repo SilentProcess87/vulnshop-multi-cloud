@@ -260,25 +260,50 @@ jobs:
           
           # Wait for deployment to be ready
           echo "Waiting for services to be ready..."
-          sleep 120
+          echo "Initial wait of 180 seconds for cloud-init to complete..."
+          sleep 180
           
-          # Test frontend
+          # Test with retries
+          MAX_RETRIES=5
+          RETRY_DELAY=30
+          
+          # Test frontend with retries
           echo "Testing frontend..."
-          if curl -f --max-time 30 "$FRONTEND_URL/status.html"; then
-            echo "✅ Frontend is accessible"
-          else
-            echo "❌ Frontend test failed"
-            exit 1
-          fi
+          for i in $(seq 1 $MAX_RETRIES); do
+            if curl -f --max-time 30 "$FRONTEND_URL/status.html" 2>/dev/null; then
+              echo "✅ Frontend is accessible"
+              break
+            else
+              if [ $i -eq $MAX_RETRIES ]; then
+                echo "❌ Frontend test failed after $MAX_RETRIES attempts"
+                echo "Trying to get more info..."
+                curl -v "$FRONTEND_URL/" || true
+                exit 1
+              else
+                echo "Frontend not ready yet (attempt $i/$MAX_RETRIES), waiting $RETRY_DELAY seconds..."
+                sleep $RETRY_DELAY
+              fi
+            fi
+          done
           
-          # Test backend API
+          # Test backend API with retries
           echo "Testing backend API..."
-          if curl -f --max-time 30 "$FRONTEND_URL/api/products"; then
-            echo "✅ Backend API is accessible"
-          else
-            echo "❌ Backend API test failed"
-            exit 1
-          fi
+          for i in $(seq 1 $MAX_RETRIES); do
+            if curl -f --max-time 30 "$FRONTEND_URL/api/products" 2>/dev/null; then
+              echo "✅ Backend API is accessible"
+              break
+            else
+              if [ $i -eq $MAX_RETRIES ]; then
+                echo "❌ Backend API test failed after $MAX_RETRIES attempts"
+                echo "Trying to get more info..."
+                curl -v "$FRONTEND_URL/api/products" || true
+                exit 1
+              else
+                echo "Backend API not ready yet (attempt $i/$MAX_RETRIES), waiting $RETRY_DELAY seconds..."
+                sleep $RETRY_DELAY
+              fi
+            fi
+          done
           
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 🧪 Deployment Tests" >> $GITHUB_STEP_SUMMARY
