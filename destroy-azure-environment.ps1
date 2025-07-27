@@ -44,15 +44,32 @@ terraform state list
 
 Write-Host ""
 Write-Host "Running terraform destroy..." -ForegroundColor Red
+Write-Host "Note: Using dummy values for required variables since we're just destroying" -ForegroundColor Yellow
 Write-Host ""
 
-# Run terraform destroy with auto-approve
+# Run terraform destroy with auto-approve and dummy variable values
 try {
-    # First, try to refresh the state
-    Write-Host "Refreshing Terraform state..." -ForegroundColor Yellow
-    terraform refresh
+    # Create a temporary tfvars file with dummy values to bypass variable prompts
+    $tfvarsContent = @"
+# Dummy values for destroy operation
+ssh_public_key = "dummy-key-for-destroy"
+apim_publisher_email = "destroy@example.com"
+apim_publisher_name = "Destroy Operation"
+admin_username = "azureuser"
+environment = "destroy"
+location = "westeurope"
+vm_size = "Standard_B2s"
+apim_sku = "Developer_1"
+git_repo = "https://github.com/dummy/repo"
+git_branch = "main"
+use_existing_apim = false
+existing_apim_name = ""
+existing_apim_resource_group = ""
+"@
     
-    # Run destroy
+    Set-Content -Path "destroy.auto.tfvars" -Value $tfvarsContent
+    
+    # Run destroy with the dummy values
     terraform destroy -auto-approve
     
     if ($LASTEXITCODE -eq 0) {
@@ -64,6 +81,12 @@ try {
         # Clean up local files
         Write-Host ""
         Write-Host "Cleaning up local state files..." -ForegroundColor Yellow
+        
+        # Remove the temporary tfvars file
+        if (Test-Path "destroy.auto.tfvars") {
+            Remove-Item "destroy.auto.tfvars" -Force
+            Write-Host "- Removed temporary destroy.auto.tfvars" -ForegroundColor Green
+        }
         
         if (Test-Path "terraform.tfstate") {
             Remove-Item "terraform.tfstate" -Force
@@ -99,6 +122,12 @@ catch {
     Write-Host ""
     Write-Host "Error during destruction: $_" -ForegroundColor Red
     Write-Host "You may need to manually delete resources from Azure Portal." -ForegroundColor Yellow
+}
+finally {
+    # Always clean up the temporary tfvars file
+    if (Test-Path "destroy.auto.tfvars") {
+        Remove-Item "destroy.auto.tfvars" -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # Return to original directory

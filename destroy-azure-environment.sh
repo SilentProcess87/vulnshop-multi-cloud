@@ -54,14 +54,28 @@ terraform state list
 
 echo ""
 echo -e "${RED}Running terraform destroy...${NC}"
+echo -e "${YELLOW}Note: Using dummy values for required variables since we're just destroying${NC}"
 echo ""
 
-# Run terraform destroy with auto-approve
-# First, try to refresh the state
-echo -e "${YELLOW}Refreshing Terraform state...${NC}"
-terraform refresh
+# Create a temporary tfvars file with dummy values to bypass variable prompts
+cat > destroy.auto.tfvars << 'EOF'
+# Dummy values for destroy operation
+ssh_public_key = "dummy-key-for-destroy"
+apim_publisher_email = "destroy@example.com"
+apim_publisher_name = "Destroy Operation"
+admin_username = "azureuser"
+environment = "destroy"
+location = "westeurope"
+vm_size = "Standard_B2s"
+apim_sku = "Developer_1"
+git_repo = "https://github.com/dummy/repo"
+git_branch = "main"
+use_existing_apim = false
+existing_apim_name = ""
+existing_apim_resource_group = ""
+EOF
 
-# Run destroy
+# Run destroy with the dummy values
 terraform destroy -auto-approve
 
 if [ $? -eq 0 ]; then
@@ -73,6 +87,12 @@ if [ $? -eq 0 ]; then
     # Clean up local files
     echo ""
     echo -e "${YELLOW}Cleaning up local state files...${NC}"
+    
+    # Remove the temporary tfvars file
+    if [ -f "destroy.auto.tfvars" ]; then
+        rm -f destroy.auto.tfvars
+        echo -e "${GREEN}- Removed temporary destroy.auto.tfvars${NC}"
+    fi
     
     if [ -f "terraform.tfstate" ]; then
         rm -f terraform.tfstate
@@ -101,6 +121,11 @@ else
     echo -e "${RED}Terraform destroy failed!${NC}"
     echo -e "${RED}Some resources may not have been deleted.${NC}"
     echo -e "${YELLOW}Check the Azure Portal for remaining resources.${NC}"
+fi
+
+# Always clean up the temporary tfvars file
+if [ -f "destroy.auto.tfvars" ]; then
+    rm -f destroy.auto.tfvars
 fi
 
 # Return to original directory

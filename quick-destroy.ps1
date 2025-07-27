@@ -16,11 +16,18 @@ Write-Host "Quick destroying Azure environment..." -ForegroundColor Red
 # Change to terraform directory
 Set-Location -Path "terraform/azure"
 
+# Create dummy variables file to bypass prompts
+@"
+ssh_public_key = "dummy"
+apim_publisher_email = "destroy@example.com"
+apim_publisher_name = "Destroy"
+"@ | Set-Content -Path "destroy.auto.tfvars"
+
 # Destroy without prompts
 terraform destroy -auto-approve
 
-# Clean up state files
-Remove-Item -Path "terraform.tfstate*", ".terraform*" -Force -ErrorAction SilentlyContinue
+# Clean up state files and temporary vars
+Remove-Item -Path "terraform.tfstate*", ".terraform*", "destroy.auto.tfvars" -Force -ErrorAction SilentlyContinue
 
 Set-Location -Path "../.."
 
