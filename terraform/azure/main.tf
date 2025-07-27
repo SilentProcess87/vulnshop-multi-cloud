@@ -231,7 +231,7 @@ resource "azurerm_api_management_api" "vulnshop" {
   display_name        = "VulnShop API"
   path                = "api"
   protocols           = ["https", "http"]
-  service_url         = "http://${azurerm_linux_virtual_machine.main.private_ip_address}:3001/api"
+  service_url         = "http://${azurerm_linux_virtual_machine.main.private_ip_address}:3001"
 
   import {
     content_format = "openapi+json"
@@ -245,7 +245,7 @@ resource "azurerm_api_management_backend" "vulnshop" {
   resource_group_name = local.apim_resource_group
   api_management_name = local.apim_name
   protocol            = "http"
-  url                 = "http://${azurerm_linux_virtual_machine.main.private_ip_address}:3001/api"
+  url                 = "http://${azurerm_linux_virtual_machine.main.private_ip_address}:3001"
 }
 
 # API Management Product
