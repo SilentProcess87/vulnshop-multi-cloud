@@ -1,0 +1,175 @@
+name: Destroy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      cloud_provider:
+        description: 'Choose cloud provider to destroy resources'
+        required: true
+        type: choice
+        options:
+          - azure
+          - gcp
+          - aws
+      environment:
+        description: 'Environment name to destroy'
+        required: true
+        default: 'dev'
+        type: string
+      confirm_destroy:
+        description: 'Type DESTROY to confirm destruction'
+        required: true
+        type: string
+
+jobs:
+  destroy:
+    name: Destroy ${{ inputs.cloud_provider }} Infrastructure
+    runs-on: ubuntu-latest
+    
+    # Only run if user typed DESTROY
+    if: inputs.confirm_destroy == 'DESTROY'
+    
+    steps:
+    - name: Validate confirmation
+      run: |
+        if [ "${{ inputs.confirm_destroy }}" != "DESTROY" ]; then
+          echo "❌ Destruction cancelled. You must type DESTROY to confirm."
+          exit 1
+        fi
+        echo "⚠️ Proceeding with infrastructure destruction..."
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.5.0"
+
+    # Azure specific setup
+    - name: Azure Login
+      if: inputs.cloud_provider == 'azure'
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    # GCP specific setup
+    - name: Authenticate to Google Cloud
+      if: inputs.cloud_provider == 'gcp'
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Setup GCP CLI
+      if: inputs.cloud_provider == 'gcp'
+      uses: google-github-actions/setup-gcloud@v2
+
+    # AWS specific setup
+    - name: Configure AWS credentials
+      if: inputs.cloud_provider == 'aws'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+    # Set provider-specific environment variables
+    - name: Set Azure environment variables
+      if: inputs.cloud_provider == 'azure'
+      run: |
+        echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+        echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
+        echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+
+    - name: Set GCP environment variables
+      if: inputs.cloud_provider == 'gcp'
+      run: |
+        echo "TF_VAR_project_id=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
+        echo "GOOGLE_PROJECT=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
+
+    - name: Set AWS environment variables
+      if: inputs.cloud_provider == 'aws'
+      run: |
+        echo "AWS_DEFAULT_REGION=${{ vars.AWS_REGION || 'us-east-1' }}" >> $GITHUB_ENV
+
+    # Create dummy variables for destroy operation
+    - name: Create destroy variables
+      working-directory: terraform/${{ inputs.cloud_provider }}
+      run: |
+        cat > destroy.auto.tfvars << 'EOF'
+        # Dummy values for destroy operation - these are not used during destruction
+        ssh_public_key = "dummy-key-for-destroy"
+        environment = "${{ inputs.environment }}"
+        git_repo = "https://github.com/dummy/repo"
+        git_branch = "main"
+        EOF
+        
+        # Add Azure-specific dummy values
+        if [ "${{ inputs.cloud_provider }}" == "azure" ]; then
+          cat >> destroy.auto.tfvars << 'EOF'
+        apim_publisher_email = "destroy@example.com"
+        apim_publisher_name = "Destroy Operation"
+        admin_username = "azureuser"
+        location = "East US"
+        vm_size = "Standard_B2s"
+        apim_sku = "Developer_1"
+        use_existing_apim = false
+        existing_apim_name = ""
+        existing_apim_resource_group = ""
+        EOF
+        fi
+
+    # Initialize Terraform
+    - name: Terraform Init
+      working-directory: terraform/${{ inputs.cloud_provider }}
+      run: |
+        terraform init \
+          -backend-config="key=vulnshop-${{ inputs.cloud_provider }}-${{ inputs.environment }}.tfstate"
+
+    # Show resources to be destroyed
+    - name: List resources to destroy
+      working-directory: terraform/${{ inputs.cloud_provider }}
+      run: |
+        echo "### 📋 Resources to be destroyed:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        terraform state list || echo "No resources found in state" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+    # Destroy infrastructure
+    - name: Terraform Destroy
+      working-directory: terraform/${{ inputs.cloud_provider }}
+      run: |
+        terraform destroy -auto-approve
+        
+        echo "## ✅ Infrastructure Destroyed Successfully! 💥" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔥 Destroyed Environment Details:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Cloud Provider**: ${{ inputs.cloud_provider }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Destroyed at**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+        echo "- **Destroyed by**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+    # Clean up temporary files
+    - name: Clean up
+      if: always()
+      working-directory: terraform/${{ inputs.cloud_provider }}
+      run: |
+        rm -f destroy.auto.tfvars
+        echo "### 🧹 Cleanup completed" >> $GITHUB_STEP_SUMMARY
+
+  destroy-cancelled:
+    name: Destruction Cancelled
+    runs-on: ubuntu-latest
+    if: inputs.confirm_destroy != 'DESTROY'
+    
+    steps:
+    - name: Cancellation message
+      run: |
+        echo "## ❌ Destruction Cancelled" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "You entered: '${{ inputs.confirm_destroy }}'" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "To destroy infrastructure, you must type exactly: **DESTROY**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🛡️ No resources were affected." >> $GITHUB_STEP_SUMMARY 
