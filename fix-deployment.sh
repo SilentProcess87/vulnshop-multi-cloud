@@ -1,7 +1,13 @@
-!/bin/bash
+#!/bin/bash
 
 # Quick fix script for VulnShop deployment issues
 set -e
+
+# Colors
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
 echo "🔧 Running quick fixes for VulnShop deployment..."
 
@@ -11,12 +17,6 @@ cd /var/www/vulnshop
 # Set ownership to www-data
 echo -e "${GREEN}Step 1: Setting file ownership...${NC}"
 sudo chown -R www-data:www-data /var/www/vulnshop
-
-# Colors
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
 
 # Step 1: Check and update Node.js
 echo -e "${GREEN}Step 1: Checking Node.js version...${NC}"
@@ -63,8 +63,73 @@ echo "Created .env file with APIM endpoint."
 npm install
 npm run build
 
+# Step 5.5: Configure Nginx for VulnShop
+echo -e "${GREEN}Step 5: Configuring Nginx for VulnShop...${NC}"
+
+# Create the nginx configuration file
+sudo tee /etc/nginx/sites-available/vulnshop > /dev/null << 'EOF'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name _;
+    
+    # Root directory for the frontend application
+    root /var/www/vulnshop/frontend/dist;
+    index index.html;
+    
+    # Frontend - serve static files and handle client-side routing
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    
+    # API proxy - forward API requests to the backend Node.js server
+    location /api/ {
+        proxy_pass http://localhost:3001/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        
+        # Timeout settings
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+    
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+    
+    # Logging
+    access_log /var/log/nginx/vulnshop-access.log;
+    error_log /var/log/nginx/vulnshop-error.log;
+}
+EOF
+
+# Disable the default site and enable vulnshop
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo ln -sf /etc/nginx/sites-available/vulnshop /etc/nginx/sites-enabled/
+
+# Test nginx configuration
+sudo nginx -t
+
+# Check permissions (important for avoiding 403 errors)
+sudo chown -R www-data:www-data /var/www/vulnshop
+sudo chmod -R 755 /var/www/vulnshop
+
 # Step 6: Restart Nginx
-echo -e "${GREEN}Step 5: Restarting Nginx...${NC}"
+echo -e "${GREEN}Step 6: Restarting Nginx...${NC}"
 sudo systemctl restart nginx
 
 # Step 7: Start backend with PM2 
