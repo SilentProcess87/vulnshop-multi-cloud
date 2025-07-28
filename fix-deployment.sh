@@ -57,7 +57,7 @@ cd /var/www/vulnshop/frontend
 rm -rf node_modules package-lock.json
 
 # Create .env file with APIM URL
-echo "VITE_API_URL=https://apim-vulnshop-t7up5q.azure-api.net/api" > .env
+echo "VITE_API_URL=https://apim-vulnshop-othsjf.azure-api.net/api" > .env
 echo "Created .env file with APIM endpoint."
 
 npm install

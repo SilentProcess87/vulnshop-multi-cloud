@@ -57,7 +57,7 @@ echo ""
 echo "2. Choose API configuration:"
 echo "==========================="
 echo "1) Use Azure API Management (Recommended for production)"
-echo "   URL: https://apim-vulnshop-t7up5q.azure-api.net/api"
+echo "   URL: https://apim-vulnshop-othsjf.azure-api.net/api"
 echo ""
 echo "2) Use direct API access (For testing only)"
 echo "   URL: /api"
@@ -74,7 +74,7 @@ fi
 
 case $CHOICE in
     1)
-        API_URL="https://apim-vulnshop-t7up5q.azure-api.net/api"
+        API_URL="https://apim-vulnshop-othsjf.azure-api.net/api"
         echo ""
         echo "Using Azure API Management endpoint..."
         ;;
@@ -89,7 +89,7 @@ case $CHOICE in
         ;;
     *)
         echo "Invalid choice. Using Azure API Management by default..."
-        API_URL="https://apim-vulnshop-t7up5q.azure-api.net/api"
+        API_URL="https://apim-vulnshop-othsjf.azure-api.net/api"
         ;;
 esac
 
