@@ -7,6 +7,8 @@ VulnShop is an intentionally vulnerable e-commerce API designed for security tes
 **Recent Updates**:
 - The database is now seeded with **1,000 realistic fake users and 50 fake products** using `@faker-js/faker` to provide a more realistic data set for testing.
 - All operational scripts have been unified into a single `manage.sh` script for easier use.
+- **NEW**: Complete Admin Settings page with ALL OWASP Top 10 (2021) vulnerabilities
+- **NEW**: Comprehensive testing script `test-admin-vulnerabilities.sh`
 
 ## API Discovery
 
@@ -104,10 +106,52 @@ These endpoints are publicly accessible and expose sensitive data:
 
 ### Administrative Endpoints
 
+#### Traditional Admin Endpoints
 - `GET /api/admin/users` - List all users (weak admin check)
 - `GET /api/admin/orders` - List all orders
 - `GET /api/admin/sessions` - View active sessions
 - `GET /api/analytics/revenue` - Revenue analytics
+
+#### NEW: Admin Settings Endpoints (ALL OWASP Top 10)
+
+The admin settings interface provides a comprehensive testing ground for all OWASP Top 10 vulnerabilities:
+
+##### A01 - Broken Access Control
+- `POST /api/admin/execute-command` - Execute admin commands without proper authorization
+- `GET /api/admin/settings` - Expose sensitive configuration
+
+##### A02 - Cryptographic Failures  
+- `POST /api/admin/generate-hash` - Generate weak MD5/SHA1 hashes
+
+##### A03 - Injection
+- `GET /api/admin/search-users?query=` - SQL injection in user search
+- `POST /api/admin/execute-sql` - Direct SQL execution interface
+
+##### A04 - Insecure Design
+- `POST /api/admin/execute-sql` - Raw SQL command execution
+
+##### A05 - Security Misconfiguration
+- `GET /api/admin/read-file?path=` - Path traversal file reading
+
+##### A06 - Vulnerable and Outdated Components
+- `POST /api/admin/process-xml` - XXE vulnerability in XML processing
+
+##### A07 - Identification and Authentication Failures
+- `POST /api/admin/impersonate` - Session hijacking/impersonation
+
+##### A08 - Software and Data Integrity Failures
+- `POST /api/admin/load-preferences` - Unsafe deserialization
+
+##### A09 - Security Logging and Monitoring Failures
+- `DELETE /api/admin/security-logs` - Clear logs without proper auditing
+- `GET /api/admin/security-logs` - View security logs
+
+##### A10 - Server-Side Request Forgery (SSRF)
+- `POST /api/admin/process-redirect` - Process URLs without validation
+
+##### Additional Vulnerabilities
+- `POST /api/admin/create-user` - Mass assignment vulnerability
+- `GET /api/admin/system-info` - System information disclosure
 
 ## OWASP Top 10 Protection
 

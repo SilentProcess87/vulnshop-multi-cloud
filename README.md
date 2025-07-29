@@ -75,7 +75,26 @@ To remove all resources:
 
 ## 3. How to Attack the Platform
 
-VulnShop contains 12 intentional vulnerabilities. Here's how to find and exploit them:
+VulnShop contains 12+ intentional vulnerabilities. Here's how to find and exploit them:
+
+### 🔧 NEW: Admin Settings Page (All OWASP Top 10)
+- **Location**: `/admin/settings` (requires admin login)
+- **Features**: Comprehensive vulnerability testing interface
+- **Includes**: ALL OWASP Top 10 (2021) vulnerabilities in one page
+- **Testing**: Use the built-in forms to test each vulnerability type
+- **Script**: Run `./test-admin-vulnerabilities.sh` for automated testing
+
+#### OWASP Top 10 Coverage in Admin Settings:
+- **A01**: Broken Access Control (command execution)
+- **A02**: Cryptographic Failures (weak MD5 hashing)
+- **A03**: Injection (SQL injection in user search)
+- **A04**: Insecure Design (direct SQL execution)
+- **A05**: Security Misconfiguration (path traversal)
+- **A06**: Vulnerable Components (XXE in XML processing)
+- **A07**: Authentication Failures (session hijacking)
+- **A08**: Software Integrity Failures (unsafe deserialization)
+- **A09**: Logging and Monitoring Failures (unlogged actions)
+- **A10**: Server-Side Request Forgery (SSRF)
 
 ### 🎯 1. SQL Injection (Search Endpoint)
 - **Location**: Product search functionality

