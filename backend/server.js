@@ -688,7 +688,6 @@ app.get('/api/public/files', (req, res) => {
   
   try {
     // VULNERABILITY: No path sanitization
-    const fs = require('fs');
     const content = fs.readFileSync(filePath, 'utf8');
     res.json({
       message: 'File content - publicly accessible',
