@@ -700,7 +700,7 @@
         "tags": ["Admin"],
         "summary": "Get system information",
         "description": "VULNERABLE: Exposes system details and environment variables",
-        "operationId": "getSystemInfo",
+        "operationId": "getAdminSystemInfo",
         "security": [
           {
             "bearerAuth": []
