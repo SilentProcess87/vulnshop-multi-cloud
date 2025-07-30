@@ -897,13 +897,19 @@ app.get('/api/discovery', (req, res) => {
     documentation: '/api/swagger',
     endpoints: endpoints,
     vulnerabilities: {
-      'SQL Injection': ['/api/products/search', '/api/public/user-search'],
-      'XSS': ['/api/products/:id/reviews'],
-      'IDOR': ['/api/orders/:id', '/api/users/:id/export'],
-      'Information Disclosure': ['/api/public/users', '/api/public/system-info', '/api/public/config'],
-      'Path Traversal': ['/api/public/files'],
-      'Mass Assignment': ['/api/register'],
-      'No Authentication': ['/api/public/*']
+      'A01 - Broken Access Control': ['/api/admin/execute-command', '/api/orders/:id', '/api/users/:id/export'],
+      'A02 - Cryptographic Failures': ['/api/admin/generate-hash', '/api/public/config'],
+      'A03 - Injection (SQL)': ['/api/products/search', '/api/public/user-search', '/api/admin/search-users', '/api/admin/execute-sql'],
+      'A04 - Insecure Design': ['/api/admin/execute-sql'],
+      'A05 - Security Misconfiguration': ['/api/admin/read-file', '/api/public/files'],
+      'A06 - Vulnerable Components (XXE)': ['/api/admin/process-xml'],
+      'A07 - Authentication Failures': ['/api/admin/impersonate'],
+      'A08 - Software Integrity Failures': ['/api/admin/load-preferences'],
+      'A09 - Logging Failures': ['/api/admin/security-logs'],
+      'A10 - SSRF': ['/api/admin/process-redirect'],
+      'Mass Assignment': ['/api/register', '/api/admin/create-user'],
+      'Information Disclosure': ['/api/public/users', '/api/public/system-info', '/api/admin/settings'],
+      'XSS': ['/api/products/:id/reviews']
     },
     security_features: {
       'OWASP Top 10 Protection': 'Available via Azure APIM policies',
@@ -927,6 +933,443 @@ app.get('/api/swagger', (req, res) => {
   }
 });
 
+// ADMIN SETTINGS ENDPOINTS - ALL OWASP TOP 10 VULNERABILITIES FOR EDUCATION
+
+// A01 - Broken Access Control: Admin command execution without proper checks
+app.post('/api/admin/execute-command', authenticateToken, async (req, res) => {
+  try {
+    const { command } = req.body;
+    
+    // VULNERABILITY: No admin role check - any authenticated user can execute commands
+    const allowedCommands = {
+      'restart-server': 'Server restart initiated (simulated)',
+      'delete-all-logs': 'All logs deleted (simulated)',
+      'backup-database': 'Database backup started (simulated)',
+      'reset-user-passwords': 'All user passwords reset (simulated)'
+    };
+    
+    const result = allowedCommands[command] || 'Command not recognized';
+    
+    res.json({
+      message: result,
+      executedBy: req.user.username,
+      timestamp: new Date().toISOString(),
+      // VULNERABILITY: Information disclosure
+      systemInfo: {
+        nodeVersion: process.version,
+        platform: process.platform,
+        memory: process.memoryUsage()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Command execution failed',
+      details: error.message,
+      stack: error.stack // VULNERABILITY: Stack trace exposure
+    });
+  }
+});
+
+// A02 - Cryptographic Failures: Weak hashing algorithms
+app.post('/api/admin/generate-hash', authenticateToken, async (req, res) => {
+  try {
+    const { password, method = 'md5' } = req.body;
+    const crypto = require('crypto');
+    
+    let hash;
+    switch (method) {
+      case 'md5':
+        // VULNERABILITY: MD5 is cryptographically broken
+        hash = crypto.createHash('md5').update(password).digest('hex');
+        break;
+      case 'sha1':
+        // VULNERABILITY: SHA1 is deprecated and weak
+        hash = crypto.createHash('sha1').update(password).digest('hex');
+        break;
+      case 'plain':
+        // VULNERABILITY: Plain text storage
+        hash = password;
+        break;
+      default:
+        hash = crypto.createHash('md5').update(password).digest('hex');
+    }
+    
+    res.json({
+      hash,
+      method,
+      warning: 'This hash method is insecure!',
+      // VULNERABILITY: Expose original password in response
+      originalPassword: password
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// A03 - Injection: SQL Injection in user search
+app.get('/api/admin/search-users', authenticateToken, async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    // VULNERABILITY: Direct SQL injection - concatenating user input
+    const sqlQuery = `SELECT * FROM users WHERE username LIKE '%${query}%' OR email LIKE '%${query}%'`;
+    
+    console.log('Executing SQL:', sqlQuery); // Log for educational purposes
+    
+    const users = await db.all(sqlQuery);
+    
+    res.json({
+      users: users.map(user => ({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        // VULNERABILITY: Expose password hashes
+        password: user.password,
+        created_at: user.created_at
+      })),
+      query: sqlQuery, // VULNERABILITY: Expose SQL query
+      count: users.length
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Search failed',
+      details: error.message,
+      sqlQuery: `SELECT * FROM users WHERE username LIKE '%${req.query.query}%'` // VULNERABILITY: Expose SQL in error
+    });
+  }
+});
+
+// A04 - Insecure Design: Direct SQL execution interface
+app.post('/api/admin/execute-sql', authenticateToken, async (req, res) => {
+  try {
+    const { sql } = req.body;
+    
+    // VULNERABILITY: Allow direct SQL execution - extremely dangerous
+    console.log('Admin SQL execution:', sql);
+    
+    let result;
+    if (sql.toLowerCase().startsWith('select')) {
+      result = await db.all(sql);
+    } else {
+      result = await db.run(sql);
+    }
+    
+    res.json({
+      message: 'SQL executed successfully',
+      results: result,
+      changes: result?.changes || 0,
+      lastID: result?.lastID || null,
+      executedSQL: sql // VULNERABILITY: Echo back the SQL
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'SQL execution failed',
+      details: error.message,
+      sql: req.body.sql // VULNERABILITY: Expose failed SQL
+    });
+  }
+});
+
+// A05 - Security Misconfiguration: File reading with path traversal
+app.get('/api/admin/read-file', authenticateToken, async (req, res) => {
+  try {
+    const { path: filePath } = req.query;
+    const fs = require('fs');
+    
+    // VULNERABILITY: No path sanitization - path traversal attack
+    console.log('Reading file:', filePath);
+    
+    const content = fs.readFileSync(filePath, 'utf8');
+    
+    res.json({
+      content,
+      path: filePath,
+      size: content.length,
+      // VULNERABILITY: Expose server information
+      serverPath: process.cwd(),
+      message: 'File read successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'File reading failed',
+      details: error.message,
+      path: req.query.path, // VULNERABILITY: Expose attempted path
+      serverInfo: {
+        cwd: process.cwd(),
+        platform: process.platform
+      }
+    });
+  }
+});
+
+// A06 - Vulnerable Components: XML processing with XXE
+app.post('/api/admin/process-xml', authenticateToken, async (req, res) => {
+  try {
+    const { xml, enableExternalEntities = false } = req.body;
+    
+    // VULNERABILITY: XML External Entity (XXE) processing
+    // In a real scenario, this would use a vulnerable XML parser
+    console.log('Processing XML with external entities:', enableExternalEntities);
+    
+    // Simulate XML processing (in reality, this would be vulnerable to XXE)
+    const simulatedResult = {
+      theme: 'dark',
+      notifications: true,
+      processedXML: xml,
+      // VULNERABILITY: Simulate reading external entities
+      externalData: enableExternalEntities ? 'file:///etc/passwd content would be here' : null
+    };
+    
+    res.json({
+      message: 'XML processed successfully',
+      settings: simulatedResult,
+      warning: 'XML processing with external entities is dangerous!',
+      // VULNERABILITY: Expose original XML in response
+      originalXML: xml
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'XML processing failed',
+      details: error.message 
+    });
+  }
+});
+
+// A07 - Authentication Failures: Session hijacking
+app.post('/api/admin/impersonate', authenticateToken, async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    
+    // VULNERABILITY: No validation of session ownership
+    // In a real app, this would hijack actual sessions
+    const fakeUsers = [
+      { sessionId: 'sess_123', username: 'john_doe', role: 'user' },
+      { sessionId: 'sess_456', username: 'admin_user', role: 'admin' },
+      { sessionId: 'sess_789', username: 'guest_user', role: 'guest' }
+    ];
+    
+    const targetUser = fakeUsers.find(u => u.sessionId === sessionId) || 
+                      { sessionId, username: 'unknown_user', role: 'user' };
+    
+    res.json({
+      message: `Session hijack successful`,
+      impersonatedUser: targetUser,
+      originalUser: req.user.username,
+      // VULNERABILITY: Expose session information
+      allActiveSessions: fakeUsers,
+      warning: 'Session impersonation is a serious security vulnerability!'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// A08 - Software Integrity Failures: Unsafe deserialization
+app.post('/api/admin/load-preferences', authenticateToken, async (req, res) => {
+  try {
+    const { serializedData, unsafe = false } = req.body;
+    
+    if (unsafe) {
+      // VULNERABILITY: Unsafe deserialization
+      console.log('WARNING: Unsafe deserialization enabled!');
+      
+      // Simulate unsafe deserialization (in reality, this could execute code)
+      const preferences = JSON.parse(serializedData);
+      
+      // VULNERABILITY: Execute any functions in the deserialized data
+      if (preferences.onLoad && typeof preferences.onLoad === 'string') {
+        console.log('Executing onLoad function:', preferences.onLoad);
+        // In reality: eval(preferences.onLoad) - EXTREMELY DANGEROUS
+      }
+      
+      res.json({
+        message: 'Preferences loaded with unsafe deserialization',
+        preferences,
+        warning: 'Unsafe deserialization can lead to remote code execution!',
+        // VULNERABILITY: Expose deserialization process
+        deserializationMethod: 'unsafe',
+        originalData: serializedData
+      });
+    } else {
+      const preferences = JSON.parse(serializedData);
+      res.json({
+        message: 'Preferences loaded safely',
+        preferences
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Preference loading failed',
+      details: error.message,
+      serializedData: req.body.serializedData // VULNERABILITY: Expose failed data
+    });
+  }
+});
+
+// A09 - Logging and Monitoring Failures: Clear logs without proper logging
+app.delete('/api/admin/security-logs', authenticateToken, async (req, res) => {
+  try {
+    // VULNERABILITY: Critical action not properly logged
+    // This should be logged as a security event, but isn't
+    
+    console.log(`User ${req.user.username} cleared security logs`); // Minimal logging
+    
+    res.json({
+      message: 'Security logs cleared',
+      clearedBy: req.user.username,
+      timestamp: new Date().toISOString(),
+      // VULNERABILITY: This critical action is not properly audited
+      warning: 'This action should be properly logged and monitored!'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// A10 - Server-Side Request Forgery (SSRF): URL processing
+app.post('/api/admin/process-redirect', authenticateToken, async (req, res) => {
+  try {
+    const { url } = req.body;
+    const https = require('https');
+    const http = require('http');
+    
+    // VULNERABILITY: No URL validation - SSRF attack vector
+    console.log('Processing redirect to:', url);
+    
+    // Simulate fetching the URL (SSRF vulnerability)
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      // VULNERABILITY: No validation of internal IPs or localhost
+      const client = url.startsWith('https://') ? https : http;
+      
+      res.json({
+        message: 'Redirect processed',
+        originalUrl: url,
+        finalUrl: url,
+        // VULNERABILITY: Could expose internal services
+        warning: 'SSRF vulnerability: Could access internal services!',
+        internalIPs: [
+          '127.0.0.1',
+          '192.168.1.1',
+          '10.0.0.1',
+          'localhost'
+        ],
+        accessiblePorts: [22, 80, 443, 3000, 3001, 5432, 3306]
+      });
+    } else {
+      res.json({
+        message: 'Invalid URL format',
+        providedUrl: url
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Redirect processing failed',
+      details: error.message,
+      url: req.body.url // VULNERABILITY: Expose attempted URL
+    });
+  }
+});
+
+// Mass Assignment Vulnerability: Create user with elevated privileges
+app.post('/api/admin/create-user', authenticateToken, async (req, res) => {
+  try {
+    // VULNERABILITY: Accept all fields from request body (mass assignment)
+    const userData = req.body;
+    
+    // This should validate and sanitize input, but doesn't
+    const hashedPassword = await bcrypt.hash(userData.password || 'defaultpass123', 10);
+    
+    const result = await db.run(
+      `INSERT INTO users (username, email, password, role, created_at) VALUES (?, ?, ?, ?, ?)`,
+      [
+        userData.username,
+        userData.email,
+        hashedPassword,
+        userData.role || 'user', // VULNERABILITY: Could set admin role
+        new Date().toISOString()
+      ]
+    );
+    
+    res.json({
+      message: 'User created successfully',
+      userId: result.lastID,
+      // VULNERABILITY: Echo back all submitted data
+      submittedData: userData,
+      warning: 'Mass assignment vulnerability: Any field can be set!'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'User creation failed',
+      details: error.message,
+      submittedData: req.body // VULNERABILITY: Expose all submitted data
+    });
+  }
+});
+
+// Admin settings endpoints
+app.get('/api/admin/settings', authenticateToken, async (req, res) => {
+  try {
+    // VULNERABILITY: Expose sensitive configuration
+    res.json({
+      database: {
+        type: 'SQLite',
+        path: 'vulnshop.db',
+        // VULNERABILITY: Expose connection string
+        connectionString: 'sqlite:///vulnshop.db'
+      },
+      server: {
+        port: PORT,
+        environment: process.env.NODE_ENV || 'development',
+        // VULNERABILITY: Expose environment variables
+        envVars: process.env
+      },
+      security: {
+        jwtSecret: JWT_SECRET, // VULNERABILITY: Expose JWT secret
+        corsOrigin: '*',
+        rateLimit: 'disabled'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/admin/system-info', authenticateToken, async (req, res) => {
+  try {
+    res.json({
+      hostname: require('os').hostname(),
+      platform: process.platform,
+      memory: process.memoryUsage(),
+      uptime: process.uptime(),
+      // VULNERABILITY: Expose system information
+      version: process.version,
+      arch: process.arch,
+      env: process.env.NODE_ENV,
+      database: path.join(process.cwd(), 'vulnshop.db')
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/admin/security-logs', authenticateToken, async (req, res) => {
+  try {
+    // Simulate security logs
+    const logs = [
+      { timestamp: new Date().toISOString(), event: 'Admin login successful', user: 'admin' },
+      { timestamp: new Date(Date.now() - 60000).toISOString(), event: 'Failed login attempt', ip: '192.168.1.100' },
+      { timestamp: new Date(Date.now() - 120000).toISOString(), event: 'Password change', user: 'john_doe' },
+      { timestamp: new Date(Date.now() - 180000).toISOString(), event: 'Privilege escalation attempt', user: 'guest' }
+    ];
+    
+    res.json({ logs });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update endpoint descriptions to include new admin settings endpoints
 function getEndpointDescription(path) {
   const descriptions = {
     '/api/public/users': 'Lists all users with sensitive data - NO AUTHENTICATION',
@@ -947,13 +1390,39 @@ function getEndpointDescription(path) {
     '/api/admin/users': 'Admin user management',
     '/api/admin/orders': 'Admin order management',
     '/api/admin/sessions': 'View active user sessions',
+    '/api/admin/settings': 'Admin configuration settings - exposes sensitive data',
+    '/api/admin/system-info': 'System information exposure',
+    '/api/admin/security-logs': 'Security logging interface',
+    '/api/admin/execute-command': 'Admin command execution - broken access control',
+    '/api/admin/generate-hash': 'Weak cryptographic hash generation',
+    '/api/admin/search-users': 'User search with SQL injection vulnerability',
+    '/api/admin/execute-sql': 'Direct SQL execution interface - insecure design',
+    '/api/admin/read-file': 'File reading with path traversal vulnerability',
+    '/api/admin/process-xml': 'XML processing with XXE vulnerability',
+    '/api/admin/impersonate': 'Session hijacking/impersonation',
+    '/api/admin/load-preferences': 'Unsafe deserialization vulnerability',
+    '/api/admin/process-redirect': 'SSRF vulnerability in URL processing',
+    '/api/admin/create-user': 'User creation with mass assignment vulnerability',
     '/api/analytics/revenue': 'Business intelligence data',
     '/api/discovery': 'API discovery endpoint',
     '/api/swagger': 'OpenAPI documentation',
-    '/api/health': 'Health check endpoint'
+    '/api/admin/execute-command': 'Execute admin commands (dangerous)',
+    '/api/admin/generate-hash': 'Generate password hashes with weak algorithms',
+    '/api/admin/search-users': 'Search users with SQL injection vulnerability',
+    '/api/admin/execute-sql': 'Execute arbitrary SQL commands (dangerous)',
+    '/api/admin/read-file': 'Read server files with path traversal (dangerous)',
+    '/api/admin/process-xml': 'Process XML with XXE vulnerability',
+    '/api/admin/impersonate': 'Session hijacking (dangerous)',
+    '/api/admin/load-preferences': 'Load preferences with unsafe deserialization',
+    '/api/admin/security-logs': 'View security logs',
+    '/api/admin/process-redirect': 'Process redirects with SSRF vulnerability',
+    '/api/admin/create-user': 'Create user with elevated privileges (mass assignment)',
+    '/api/admin/settings': 'View admin settings and configuration',
+    '/api/admin/system-info': 'View system information',
+    '/api/admin/security-logs': 'View security logs'
   };
   
   return descriptions[path] || 'API endpoint';
 }
 
-startServer(); 
+startServer();

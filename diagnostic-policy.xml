@@ -1,0 +1,117 @@
+<policies>
+	<inbound>
+		<!-- Enforce HTTPS -->
+		<check-header name="X-Forwarded-Proto" failed-check-httpcode="403" failed-check-error-message="HTTPS Required">
+			<value>https</value>
+		</check-header>
+		<!-- Set security headers -->
+		<set-header name="X-Content-Type-Options" exists-action="override">
+			<value>nosniff</value>
+		</set-header>
+		<set-header name="X-Frame-Options" exists-action="override">
+			<value>DENY</value>
+		</set-header>
+		<set-header name="X-XSS-Protection" exists-action="override">
+			<value>1; mode=block</value>
+		</set-header>
+		<set-header name="Strict-Transport-Security" exists-action="override">
+			<value>max-age=31536000; includeSubDomains</value>
+		</set-header>
+		<!-- Sanitize and capture request content -->
+		<set-variable name="requestBody" value="@((context.Request?.Body?.As<string>(preserveContent: true)) ?? string.Empty)" />
+		<set-variable name="requestHeaders" value="@(JsonConvert.SerializeObject(context.Request.Headers))" />
+	</inbound>
+	<backend>
+		<forward-request />
+	</backend>
+	<outbound>
+		<!-- Temporarily add diagnostic header -->
+		<set-header name="X-Debug-Mode" exists-action="override">
+			<value>diagnostic</value>
+		</set-header>
+		
+		<!-- Modified Cortex integration with error handling -->
+		<send-request mode="new" response-variable-name="mirrorMessage" timeout="10" ignore-error="true">
+			<set-url>{{cortex-api-url}}</set-url>
+			<set-method>POST</set-method>
+			<set-header name="Content-Type" exists-action="override">
+				<value>application/json</value>
+			</set-header>
+			<!-- Try different auth header format -->
+			<set-header name="x-xdr-auth-id" exists-action="override">
+				<value>{{cortex-api-key}}</value>
+			</set-header>
+			<set-body>@{
+                try {
+                    string requestBody = context.Variables.GetValueOrDefault<string>("requestBody");
+                    string responseBody = context.Response.Body.As<string>(preserveContent: true);
+                    int bodySizeLimit = {{cortex-http-body-size-limit-bytes}};
+                    bool requestBodySizeExceedsLimit = requestBody.Length > bodySizeLimit;
+                    bool responseBodySizeExceedsLimit = responseBody.Length > bodySizeLimit;
+
+                    return JsonConvert.SerializeObject(new {
+                        subscriptionID          = "{{cloud-account-id}}",
+                        resourceGroup           = "{{cloud-resource-group}}",
+                        serviceID               = context.Deployment.ServiceId,
+                        region                  = context.Deployment.Region,
+                        apiID                   = context.Api.Id,
+                        apiRevision             = context.Api.Revision,
+                        requestID               = context.RequestId,
+                        url                     = context.Request.OriginalUrl.ToString(),
+                        httpMethod              = context.Request.Method,
+                        requestBody             = requestBodySizeExceedsLimit ? requestBody.Substring(0, bodySizeLimit) : requestBody,
+                        requestBodyTruncated    = requestBodySizeExceedsLimit,
+                        requestHeaders          = JsonConvert.DeserializeObject(context.Variables.GetValueOrDefault<string>("requestHeaders")),
+                        timestamp               = new DateTimeOffset(context.Timestamp).ToUnixTimeMilliseconds(),
+                        requestIpAddress        = context.Request.IpAddress,
+                        statusCode              = context.Response.StatusCode,
+                        responseBody            = responseBodySizeExceedsLimit ? responseBody.Substring(0, bodySizeLimit) : responseBody,
+                        responseBodyTruncated   = responseBodySizeExceedsLimit,
+                        responseHeaders         = context.Response.Headers.ToDictionary(h => h.Key, h => h.Value)
+                    });
+                }
+                catch (Exception ex) {
+                    return JsonConvert.SerializeObject(new {
+                        error = "Failed to serialize request data",
+                        exception = ex.Message
+                    });
+                }
+            }</set-body>
+		</send-request>
+		
+		<!-- Add diagnostic information to response headers -->
+		<choose>
+			<when condition="@(context.Variables.ContainsKey("mirrorMessage"))">
+				<set-header name="X-Cortex-Status" exists-action="override">
+					<value>@(((IResponse)context.Variables["mirrorMessage"]).StatusCode.ToString())</value>
+				</set-header>
+			</when>
+			<otherwise>
+				<set-header name="X-Cortex-Status" exists-action="override">
+					<value>no-response</value>
+				</set-header>
+			</otherwise>
+		</choose>
+	</outbound>
+	<on-error>
+		<set-status code="500" reason="Internal Server Error" />
+		<set-header name="X-Error-Source" exists-action="override">
+			<value>@(context.LastError?.Source ?? "unknown")</value>
+		</set-header>
+		<set-header name="X-Error-Reason" exists-action="override">
+			<value>@(context.LastError?.Reason ?? "unknown")</value>
+		</set-header>
+		<set-header name="X-Error-Message" exists-action="override">
+			<value>@(context.LastError?.Message ?? "unknown")</value>
+		</set-header>
+		<set-body>@{
+            return JsonConvert.SerializeObject(new {
+                error = "An unexpected error occurred.",
+                requestId = context.RequestId,
+                errorSource = context.LastError?.Source,
+                errorReason = context.LastError?.Reason,
+                errorMessage = context.LastError?.Message
+            });
+        }</set-body>
+	</on-error>
+</policies>

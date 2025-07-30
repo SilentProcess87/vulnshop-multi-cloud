@@ -81,4 +81,7 @@ console.log('API Configuration:', {
   hasSubscriptionKey: !!API_SUBSCRIPTION_KEY
 })
 
+// Export the api instance as named export
+export { api }
+
 export default api 

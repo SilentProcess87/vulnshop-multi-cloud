@@ -9,6 +9,7 @@ import ProductDetailPage from './pages/ProductDetailPage'
 import CartPage from './pages/CartPage'
 import OrdersPage from './pages/OrdersPage'
 import AdminPage from './pages/AdminPage'
+import AdminSettingsPage from './pages/AdminSettingsPage'
 import './App.css'
 
 // Authentication Context
@@ -149,6 +150,7 @@ function App() {
                 <Route path="/cart" element={<CartPage />} />
                 <Route path="/orders" element={user ? <OrdersPage /> : <Navigate to="/login" />} />
                 <Route path="/admin" element={user?.role === 'admin' ? <AdminPage /> : <Navigate to="/" />} />
+                <Route path="/admin/settings" element={user?.role === 'admin' ? <AdminSettingsPage /> : <Navigate to="/" />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
             </main>

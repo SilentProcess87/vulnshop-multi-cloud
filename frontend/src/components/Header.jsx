@@ -22,10 +22,15 @@ const Header = () => {
             <Link to="/orders" className="nav-link">My Orders</Link>
           )}
           {user?.role === 'admin' && (
-            <Link to="/admin" className="nav-link">
-              <Shield size={16} style={{ marginRight: '0.5rem' }} />
-              Admin
-            </Link>
+            <>
+              <Link to="/admin" className="nav-link">
+                <Shield size={16} style={{ marginRight: '0.5rem' }} />
+                Admin
+              </Link>
+              <Link to="/admin/settings" className="nav-link" style={{ color: '#dc2626' }}>
+                ⚠️ Settings
+              </Link>
+            </>
           )}
         </nav>
 

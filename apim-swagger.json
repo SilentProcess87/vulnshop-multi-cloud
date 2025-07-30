@@ -677,6 +677,420 @@
         }
       }
     },
+    "/api/admin/settings": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get admin configuration settings",
+        "description": "VULNERABLE: Exposes sensitive configuration including JWT secrets",
+        "operationId": "getAdminSettings",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin configuration settings with sensitive data"
+          }
+        }
+      }
+    },
+    "/api/admin/system-info": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get system information",
+        "description": "VULNERABLE: Exposes system details and environment variables",
+        "operationId": "getAdminSystemInfo",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "System information"
+          }
+        }
+      }
+    },
+    "/api/admin/execute-command": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Execute admin commands",
+        "description": "VULNERABLE: A01 - Broken Access Control - No proper admin verification",
+        "operationId": "executeAdminCommand",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "command": {
+                    "type": "string",
+                    "description": "Command to execute"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Command executed"
+          }
+        }
+      }
+    },
+    "/api/admin/generate-hash": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Generate password hash",
+        "description": "VULNERABLE: A02 - Cryptographic Failures - Uses weak hashing algorithms",
+        "operationId": "generateHash",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string"
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": ["md5", "sha1", "plain"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Hash generated with weak algorithm"
+          }
+        }
+      }
+    },
+    "/api/admin/search-users": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Search users with SQL injection",
+        "description": "VULNERABLE: A03 - Injection - SQL injection vulnerability",
+        "operationId": "searchUsersVulnerable",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search query (vulnerable to SQL injection)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results with SQL injection vulnerability"
+          }
+        }
+      }
+    },
+    "/api/admin/execute-sql": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Execute raw SQL commands",
+        "description": "VULNERABLE: A04 - Insecure Design - Direct SQL execution interface",
+        "operationId": "executeSQL",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sql": {
+                    "type": "string",
+                    "description": "Raw SQL command to execute"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SQL executed"
+          }
+        }
+      }
+    },
+    "/api/admin/read-file": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Read server files",
+        "description": "VULNERABLE: A05 - Security Misconfiguration - Path traversal vulnerability",
+        "operationId": "readServerFile",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "File path (vulnerable to path traversal)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File content"
+          }
+        }
+      }
+    },
+    "/api/admin/process-xml": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Process XML with external entities",
+        "description": "VULNERABLE: A06 - Vulnerable Components - XXE vulnerability",
+        "operationId": "processXML",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "xml": {
+                    "type": "string"
+                  },
+                  "enableExternalEntities": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "XML processed"
+          }
+        }
+      }
+    },
+    "/api/admin/impersonate": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Impersonate user session",
+        "description": "VULNERABLE: A07 - Authentication Failures - Session hijacking",
+        "operationId": "impersonateUser",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sessionId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session impersonation successful"
+          }
+        }
+      }
+    },
+    "/api/admin/load-preferences": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Load user preferences",
+        "description": "VULNERABLE: A08 - Software Integrity Failures - Unsafe deserialization",
+        "operationId": "loadPreferences",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "serializedData": {
+                    "type": "string"
+                  },
+                  "unsafe": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preferences loaded"
+          }
+        }
+      }
+    },
+    "/api/admin/security-logs": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get security logs",
+        "description": "Security logging interface",
+        "operationId": "getSecurityLogs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Security logs"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "Clear security logs",
+        "description": "VULNERABLE: A09 - Logging Failures - Critical action not properly logged",
+        "operationId": "clearSecurityLogs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Security logs cleared"
+          }
+        }
+      }
+    },
+    "/api/admin/process-redirect": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Process URL redirect",
+        "description": "VULNERABLE: A10 - SSRF - Server-Side Request Forgery vulnerability",
+        "operationId": "processRedirect",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Redirect processed"
+          }
+        }
+      }
+    },
+    "/api/admin/create-user": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Create new user",
+        "description": "VULNERABLE: Mass Assignment - Can set privileged roles",
+        "operationId": "createUserMassAssignment",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": ["user", "admin", "superadmin"]
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User created"
+          }
+        }
+      }
+    },
     "/api/analytics/revenue": {
       "get": {
         "tags": ["Analytics"],
